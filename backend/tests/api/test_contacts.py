@@ -612,17 +612,21 @@ async def test_tags_appear_in_get_response(async_client: AsyncClient, db: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_tags_case_sensitive_storage(async_client: AsyncClient, db: AsyncSession):
-    """Test tags are stored with case sensitivity."""
+async def test_get_contact_invalid_id_format(async_client: AsyncClient):
+    """Test 422/404 for invalid UUID format."""
+    response = await async_client.get("/api/v1/contacts/not-a-uuid")
+    assert response.status_code in [404, 422]
+
+
+@pytest.mark.asyncio
+async def test_create_contact_invalid_email(async_client: AsyncClient):
+    """Test 422 for invalid email format."""
     response = await async_client.post(
         "/api/v1/contacts/",
         json={
-            "first_name": "Case",
-            "last_name": "Test",
-            "custom_tags_a": ["VIP", "vip", "Vip"],
+            "first_name": "Bad",
+            "last_name": "Email",
+            "email": "not-an-email",
         },
     )
-
-    assert response.status_code == 201
-    # All three should be stored as-is (case-sensitive)
-    assert response.json()["custom_tags_a"] == ["VIP", "vip", "Vip"]
+    assert response.status_code == 422

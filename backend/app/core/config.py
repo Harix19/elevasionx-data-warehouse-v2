@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # Application
     DEBUG: bool = False
     APP_NAME: str = "Leads Data Warehouse API"
+    CSV_IMPORT_BATCH_SIZE: int = 1000
 
     # Server
     HOST: str = "0.0.0.0"

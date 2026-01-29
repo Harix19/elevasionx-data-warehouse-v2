@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.models.lead_status import LeadStatus
 
@@ -24,6 +24,17 @@ class ContactBase(BaseModel):
     custom_tags_c: list[str] | None = None
     lead_source: str | None = None
     lead_score: int | None = None
+
+    @field_validator("custom_tags_a", "custom_tags_b", "custom_tags_c")
+    @classmethod
+    def validate_tags(cls, v: list[str] | None) -> list[str] | None:
+        """Ensure tags do not contain commas."""
+        if v is None:
+            return v
+        for tag in v:
+            if "," in tag:
+                raise ValueError(f"Tag '{tag}' cannot contain commas")
+        return v
 
 
 class ContactCreate(ContactBase):
@@ -51,6 +62,17 @@ class ContactUpdate(BaseModel):
     lead_score: int | None = None
     status: LeadStatus | None = None
     company_id: UUID | None = None
+
+    @field_validator("custom_tags_a", "custom_tags_b", "custom_tags_c")
+    @classmethod
+    def validate_tags(cls, v: list[str] | None) -> list[str] | None:
+        """Ensure tags do not contain commas."""
+        if v is None:
+            return v
+        for tag in v:
+            if "," in tag:
+                raise ValueError(f"Tag '{tag}' cannot contain commas")
+        return v
 
 
 class ContactResponse(ContactBase):

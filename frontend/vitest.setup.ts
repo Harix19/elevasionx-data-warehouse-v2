@@ -66,3 +66,15 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     }),
   };
 });
+
+// Mock next/font/google
+vi.mock('next/font/google', () => ({
+  Inter: () => ({
+    variable: '--font-inter',
+    className: 'inter-font',
+  }),
+  JetBrains_Mono: () => ({
+    variable: '--font-jetbrains-mono',
+    className: 'jetbrains-mono-font',
+  }),
+}));

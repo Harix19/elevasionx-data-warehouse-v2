@@ -1,7 +1,8 @@
 """Main FastAPI application."""
 
+import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 from app.api.v1.api import api_router
 from app.core.logging import configure_logging, get_logger
@@ -24,6 +25,21 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log incoming requests with method, path, and processing time."""
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    logger.info(
+        f"Request: {request.method} {request.url.path} "
+        f"- Status: {response.status_code} "
+        f"- Duration: {process_time:.4f}s"
+    )
+    return response
+
 
 # Include API router
 app.include_router(api_router, prefix="/api/v1")

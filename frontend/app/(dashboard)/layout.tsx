@@ -6,6 +6,7 @@ import { tokenStorage } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Home, Building2, Users, Upload, LogOut, Zap } from 'lucide-react';
+import ErrorBoundary from '@/components/error-boundary';
 
 export default function DashboardLayout({
   children,
@@ -106,7 +107,9 @@ export default function DashboardLayout({
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-6xl mx-auto p-8 md:p-12">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </main>
       </div>

@@ -39,6 +39,17 @@ class CompanyBase(BaseModel):
             return None
         return v.lower().strip()
 
+    @field_validator("custom_tags_a", "custom_tags_b", "custom_tags_c", "keywords", "technologies")
+    @classmethod
+    def validate_tags(cls, v: list[str] | None) -> list[str] | None:
+        """Ensure tags do not contain commas."""
+        if v is None:
+            return v
+        for tag in v:
+            if "," in tag:
+                raise ValueError(f"Tag '{tag}' cannot contain commas")
+        return v
+
 
 class CompanyCreate(CompanyBase):
     """Schema for creating a company."""
@@ -78,6 +89,17 @@ class CompanyUpdate(BaseModel):
         if v is None or v == "":
             return None
         return v.lower().strip()
+
+    @field_validator("custom_tags_a", "custom_tags_b", "custom_tags_c", "keywords", "technologies")
+    @classmethod
+    def validate_tags(cls, v: list[str] | None) -> list[str] | None:
+        """Ensure tags do not contain commas."""
+        if v is None:
+            return v
+        for tag in v:
+            if "," in tag:
+                raise ValueError(f"Tag '{tag}' cannot contain commas")
+        return v
 
 
 class CompanyResponse(CompanyBase):

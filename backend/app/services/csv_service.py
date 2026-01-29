@@ -8,9 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from app.models.company import Company
 from app.models.contact import Contact
 from app.schemas.bulk import BulkImportResponse, ImportError
-
-
-BATCH_SIZE = 1000
+from app.core.config import settings
 
 
 def import_companies_csv(db: Session, file_content: str) -> BulkImportResponse:
@@ -68,7 +66,7 @@ def import_companies_csv(db: Session, file_content: str) -> BulkImportResponse:
             total += 1
 
             # Process batch when full
-            if len(batch) >= BATCH_SIZE:
+            if len(batch) >= settings.CSV_IMPORT_BATCH_SIZE:
                 batch_created, batch_updated = _upsert_companies_batch(db, batch)
                 created += batch_created
                 updated += batch_updated
@@ -150,7 +148,7 @@ def import_contacts_csv(db: Session, file_content: str) -> BulkImportResponse:
             total += 1
 
             # Process batch when full
-            if len(batch) >= BATCH_SIZE:
+            if len(batch) >= settings.CSV_IMPORT_BATCH_SIZE:
                 batch_created, batch_updated = _upsert_contacts_batch(db, batch, domains_in_batch)
                 created += batch_created
                 updated += batch_updated

@@ -1,23 +1,31 @@
 const TOKEN_KEY = 'access_token';
 
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+};
+
 export const tokenStorage = {
   getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(TOKEN_KEY);
+    return getCookie(TOKEN_KEY);
   },
 
   setToken(token: string): void {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(TOKEN_KEY, token);
-    // Also set cookie for middleware (httpOnly for security)
-    document.cookie = `access_token=${token}; path=/; max-age=86400; SameSite=Strict`;
+    // Set cookie (Secure and SameSite=Strict recommended)
+    // Note: HttpOnly can only be set by the server, but we can set the cookie from JS
+    // if the server doesn't do it. If the server sets it as HttpOnly, this JS set 
+    // will be ignored/overwritten by the server's header if configured correctly.
+    document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=86400; SameSite=Strict; Secure`;
   },
 
   removeToken(): void {
     if (typeof window === 'undefined') return;
-    localStorage.removeItem(TOKEN_KEY);
-    // Also remove cookie
-    document.cookie = 'access_token=; path=/; max-age=0; SameSite=Strict';
+    // Remove cookie by setting max-age to 0
+    document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Strict; Secure`;
   },
 
   isAuthenticated(): boolean {

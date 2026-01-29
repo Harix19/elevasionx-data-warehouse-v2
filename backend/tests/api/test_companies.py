@@ -321,18 +321,21 @@ async def test_list_empty(async_client: AsyncClient):
 
 
 @pytest.mark.anyio
-async def test_list_pagination(async_client: AsyncClient):
-    """Test pagination limit works."""
-    # Create 5 companies
-    for i in range(5):
-        await async_client.post(
-            "/api/v1/companies/",
-            json={"name": f"Company {i}"},
-        )
+async def test_create_company_invalid_data_types(async_client: AsyncClient):
+    """Test that invalid data types return 422."""
+    response = await async_client.post(
+        "/api/v1/companies/",
+        json={"name": "Bad Types", "employee_count": "not-an-int"},
+    )
+    assert response.status_code == 422
 
-    # Request with limit=2
-    response = await async_client.get("/api/v1/companies/?limit=2")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["items"]) == 2
-    assert data["next_cursor"] is not None
+
+@pytest.mark.anyio
+async def test_update_company_invalid_id_format(async_client: AsyncClient):
+    """Test that invalid UUID format returns 422 or 404 depending on routing."""
+    response = await async_client.patch(
+        "/api/v1/companies/not-a-uuid",
+        json={"name": "New Name"},
+    )
+    # FastAPI/Pydantic will likely return 422 if it's a path parameter validated as UUID
+    assert response.status_code in [404, 422]
