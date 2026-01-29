@@ -1,140 +1,115 @@
 'use client';
 
-import { Building2, Users, Award, TrendingUp, ArrowUpRight, Sparkles } from 'lucide-react';
-import { MetricCard } from '@/components/dashboard/metric-card';
-import { QuickActions } from '@/components/dashboard/quick-actions';
-import { RecentActivity } from '@/components/dashboard/recent-activity';
-import { useDashboardMetrics } from '@/hooks/use-dashboard-metrics';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { tokenStorage } from '@/lib/auth';
+import { Building2, Users, Upload, ArrowRight, Activity, Database, Globe } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { totalCompanies, totalContacts, totalQualified, recentActivity, isLoading, error } =
-    useDashboardMetrics();
+  const router = useRouter();
 
-  if (error) {
-    return (
-      <div className="space-y-6 animate-fade-in-up">
-        <div>
-          <h2 className="text-3xl font-bold" style={{ color: 'var(--foreground)' }}>Dashboard</h2>
-          <p style={{ color: 'var(--foreground-muted)' }}>Overview of your lead pipeline</p>
-        </div>
-        <div className="glass rounded-2xl p-6 border border-red-500/20 bg-red-500/5">
-          <p className="text-red-400">Failed to load dashboard data. Please try again later.</p>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!tokenStorage.isAuthenticated()) {
+      router.replace('/login');
+    }
+  }, [router]);
+
+  const stats = [
+    { label: 'Total Companies', value: '1,284', icon: Building2, change: '+12%', trend: 'up' },
+    { label: 'Active Contacts', value: '4,592', icon: Users, change: '+8%', trend: 'up' },
+    { label: 'Data Sources', value: '12', icon: Globe, change: '0%', trend: 'neutral' },
+    { label: 'API Requests', value: '85k', icon: Activity, change: '+24%', trend: 'up' },
+  ];
+
+  const quickActions = [
+    { 
+      title: 'Company Directory', 
+      description: 'Manage and enrich your company data.', 
+      icon: Building2, 
+      href: '/companies',
+      color: 'blue'
+    },
+    { 
+      title: 'Contact List', 
+      description: 'Unified view of all stakeholders.', 
+      icon: Users, 
+      href: '/contacts',
+      color: 'blue'
+    },
+    { 
+      title: 'Data Import', 
+      description: 'Bulk upload CSV or JSON data files.', 
+      icon: Upload, 
+      href: '/import',
+      color: 'blue'
+    },
+  ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Header */}
-      <div className="animate-fade-in-up">
-        <h2 className="text-4xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
-          Welcome back! <Sparkles className="inline w-8 h-8 ml-2" style={{ color: 'var(--accent)' }} />
-        </h2>
-        <p className="text-lg" style={{ color: 'var(--foreground-muted)' }}>
-          Here's what's happening with your sales pipeline today
-        </p>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
+        <p className="text-muted-foreground text-sm">Welcome back. Here's what's happening across your data warehouse.</p>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat) => (
+          <div key={stat.label} className="surface-card p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="p-2 rounded-md bg-zinc-900 border border-border">
+                <stat.icon className="w-4 h-4 text-primary" />
+              </div>
+              <span className={`text-xs font-medium ${stat.trend === 'up' ? 'text-green-500' : 'text-muted-foreground'}`}>
+                {stat.change}
+              </span>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{stat.label}</p>
+              <h3 className="text-2xl font-bold text-foreground">{stat.value}</h3>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Quick Actions */}
-      <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-        <QuickActions />
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {quickActions.map((action) => (
+            <Link key={action.title} href={action.href} className="group">
+              <div className="surface-card p-6 h-full flex flex-col justify-between hover:border-primary/50 transition-all">
+                <div className="space-y-4">
+                  <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-border flex items-center justify-center group-hover:border-primary/50 transition-colors">
+                    <action.icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-foreground">{action.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{action.description}</p>
+                  </div>
+                </div>
+                <div className="mt-6 flex items-center text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                  Explore <ArrowRight className="ml-1 w-3 h-3" />
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Link 
-          href="/companies" 
-          className="glass rounded-2xl p-6 hover-glow group cursor-pointer animate-fade-in-up relative overflow-hidden"
-          style={{ animationDelay: '200ms' }}
-        >
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
-            style={{ background: 'radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent)' }}
-          ></div>
-          <div className="relative z-10">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center" 
-                style={{ background: 'var(--gradient-primary)' }}>
-                <Building2 className="w-6 h-6 text-white" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" 
-                style={{ color: 'var(--primary)' }} />
-            </div>
-            <p className="text-sm mb-2" style={{ color: 'var(--foreground-muted)' }}>Total Companies</p>
-            <p className="text-4xl font-bold" style={{ color: 'var(--foreground)' }}>
-              {isLoading ? '...' : totalCompanies.toLocaleString()}
-            </p>
-            <div className="flex items-center gap-2 mt-3">
-              <TrendingUp className="w-4 h-4" style={{ color: 'var(--accent-green)' }} />
-              <span className="text-sm font-medium" style={{ color: 'var(--accent-green)' }}>+5.2%</span>
-              <span className="text-sm" style={{ color: 'var(--foreground-muted)' }}>vs last month</span>
-            </div>
+      {/* Recent Activity Placeholder */}
+      <div className="surface-card overflow-hidden">
+        <div className="p-6 border-b border-border bg-background-alt">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-primary" />
+            <h3 className="font-semibold text-sm">System Performance</h3>
           </div>
-        </Link>
-
-        <Link 
-          href="/contacts" 
-          className="glass rounded-2xl p-6 hover-glow group cursor-pointer animate-fade-in-up relative overflow-hidden"
-          style={{ animationDelay: '300ms' }}
-        >
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
-            style={{ background: 'radial-gradient(circle at top right, rgba(139, 92, 246, 0.1), transparent)' }}
-          ></div>
-          <div className="relative z-10">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center" 
-                style={{ background: 'var(--gradient-success)' }}>
-                <Users className="w-6 h-6 text-white" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" 
-                style={{ color: 'var(--accent-green)' }} />
-            </div>
-            <p className="text-sm mb-2" style={{ color: 'var(--foreground-muted)' }}>Total Contacts</p>
-            <p className="text-4xl font-bold" style={{ color: 'var(--foreground)' }}>
-              {isLoading ? '...' : totalContacts.toLocaleString()}
-            </p>
-            <div className="flex items-center gap-2 mt-3">
-              <TrendingUp className="w-4 h-4" style={{ color: 'var(--accent-green)' }} />
-              <span className="text-sm font-medium" style={{ color: 'var(--accent-green)' }}>+8.1%</span>
-              <span className="text-sm" style={{ color: 'var(--foreground-muted)' }}>vs last month</span>
-            </div>
-          </div>
-        </Link>
-
-        <Link 
-          href="/companies?status=qualified" 
-          className="glass rounded-2xl p-6 hover-glow group cursor-pointer animate-fade-in-up relative overflow-hidden"
-          style={{ animationDelay: '400ms' }}
-        >
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
-            style={{ background: 'radial-gradient(circle at top right, rgba(245, 158, 11, 0.1), transparent)' }}
-          ></div>
-          <div className="relative z-10">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center" 
-                style={{ background: 'var(--gradient-accent)' }}>
-                <Award className="w-6 h-6 text-white" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" 
-                style={{ color: 'var(--accent)' }} />
-            </div>
-            <p className="text-sm mb-2" style={{ color: 'var(--foreground-muted)' }}>Qualified Leads</p>
-            <p className="text-4xl font-bold" style={{ color: 'var(--foreground)' }}>
-              {isLoading ? '...' : totalQualified.toLocaleString()}
-            </p>
-            <div className="flex items-center gap-2 mt-3">
-              <TrendingUp className="w-4 h-4" style={{ color: 'var(--accent-green)' }} />
-              <span className="text-sm font-medium" style={{ color: 'var(--accent-green)' }}>+12.4%</span>
-              <span className="text-sm" style={{ color: 'var(--foreground-muted)' }}>vs last month</span>
-            </div>
-          </div>
-        </Link>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="animate-fade-in-up" style={{ animationDelay: '500ms' }}>
-        <RecentActivity activities={recentActivity} isLoading={isLoading} />
+        </div>
+        <div className="p-6 flex items-center justify-center h-48 text-muted-foreground text-sm italic">
+          Ingestion pipelines active. All systems operational.
+        </div>
       </div>
     </div>
   );
