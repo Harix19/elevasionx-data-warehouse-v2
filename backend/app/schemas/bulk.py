@@ -47,7 +47,7 @@ class BulkCompanyRecord(BaseModel):
     custom_tags_c: list[str] = Field(default_factory=list)
     lead_source: str | None = None
     lead_score: int | None = None
-    status: str | None = None
+    status: str = "new"
 
 
 class BulkContactRecord(BaseModel):
@@ -70,7 +70,7 @@ class BulkContactRecord(BaseModel):
     custom_tags_c: list[str] = Field(default_factory=list)
     lead_source: str | None = None
     lead_score: int | None = None
-    status: str | None = None
+    status: str = "new"
 
 
 class BulkCompanyRequest(BaseModel):

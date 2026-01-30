@@ -2,10 +2,11 @@
 
 from sqlalchemy import Column, String, Boolean, DateTime, Index
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 import uuid
 from datetime import datetime, timezone
+from typing import List
 
 from app.db.base import Base
 
@@ -28,4 +29,12 @@ class User(Base):
         nullable=False,
         server_default=func.now(),
         default=lambda: datetime.now(timezone.utc)
+    )
+    
+    # Relationship to API keys
+    api_keys: Mapped[List["APIKey"]] = relationship(
+        "APIKey",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
     )

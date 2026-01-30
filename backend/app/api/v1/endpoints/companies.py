@@ -234,6 +234,122 @@ async def list_companies(
     }
 
 
+@router.get("/filter-options")
+async def get_company_filter_options(db: DB) -> dict:
+    """Get available filter options for companies.
+
+    Returns distinct values for filterable fields that have data.
+    Only includes fields that have actual data (progressive disclosure pattern).
+    """
+    from sqlalchemy import func, distinct
+
+    options = {}
+
+    # Get distinct industries (only if data exists)
+    industries_stmt = (
+        select(distinct(Company.industry))
+        .where(Company.industry.is_not(None))
+        .where(Company.deleted_at.is_(None))
+        .order_by(Company.industry)
+    )
+    industries_result = await db.execute(industries_stmt)
+    industries = [r for r in industries_result.scalars().all() if r]
+    if industries:
+        options["industries"] = industries
+
+    # Get distinct countries
+    countries_stmt = (
+        select(distinct(Company.country))
+        .where(Company.country.is_not(None))
+        .where(Company.deleted_at.is_(None))
+        .order_by(Company.country)
+    )
+    countries_result = await db.execute(countries_stmt)
+    countries = [r for r in countries_result.scalars().all() if r]
+    if countries:
+        options["countries"] = countries
+
+    # Get revenue range (min/max)
+    revenue_stmt = select(
+        func.min(Company.revenue),
+        func.max(Company.revenue),
+    ).where(
+        Company.revenue.is_not(None),
+        Company.deleted_at.is_(None),
+    )
+    revenue_result = await db.execute(revenue_stmt)
+    revenue_min, revenue_max = revenue_result.one_or_none() or (None, None)
+    if revenue_min is not None and revenue_max is not None:
+        options["revenue_range"] = {
+            "min": float(revenue_min),
+            "max": float(revenue_max),
+        }
+
+    # Get lead score range
+    lead_score_stmt = select(
+        func.min(Company.lead_score),
+        func.max(Company.lead_score),
+    ).where(
+        Company.lead_score.is_not(None),
+        Company.deleted_at.is_(None),
+    )
+    lead_score_result = await db.execute(lead_score_stmt)
+    lead_score_min, lead_score_max = lead_score_result.one_or_none() or (None, None)
+    if lead_score_min is not None and lead_score_max is not None:
+        options["lead_score_range"] = {
+            "min": int(lead_score_min),
+            "max": int(lead_score_max),
+        }
+
+    # Get employee count range
+    employee_stmt = select(
+        func.min(Company.employee_count),
+        func.max(Company.employee_count),
+    ).where(
+        Company.employee_count.is_not(None),
+        Company.deleted_at.is_(None),
+    )
+    employee_result = await db.execute(employee_stmt)
+    employee_min, employee_max = employee_result.one_or_none() or (None, None)
+    if employee_min is not None and employee_max is not None:
+        options["employee_count_range"] = {
+            "min": int(employee_min),
+            "max": int(employee_max),
+        }
+
+    # Get distinct tags from custom_tags_a (flatten array)
+    tags_a_stmt = select(distinct(func.unnest(Company.custom_tags_a))).where(
+        Company.custom_tags_a.is_not(None),
+        Company.deleted_at.is_(None),
+    )
+    tags_a_result = await db.execute(tags_a_stmt)
+    tags_a = sorted([r for r in tags_a_result.scalars().all() if r])
+    if tags_a:
+        options["tags_a"] = tags_a
+
+    # Get distinct tags from custom_tags_b
+    tags_b_stmt = select(distinct(func.unnest(Company.custom_tags_b))).where(
+        Company.custom_tags_b.is_not(None),
+        Company.deleted_at.is_(None),
+    )
+    tags_b_result = await db.execute(tags_b_stmt)
+    tags_b = sorted([r for r in tags_b_result.scalars().all() if r])
+    if tags_b:
+        options["tags_b"] = tags_b
+
+    # Get distinct tags from custom_tags_c
+    tags_c_stmt = select(distinct(func.unnest(Company.custom_tags_c))).where(
+        Company.custom_tags_c.is_not(None),
+        Company.deleted_at.is_(None),
+    )
+    tags_c_result = await db.execute(tags_c_stmt)
+    tags_c = sorted([r for r in tags_c_result.scalars().all() if r])
+    if tags_c:
+        options["tags_c"] = tags_c
+
+    return options
+
+
 @router.get("/{company_id}", response_model=CompanyResponse)
 async def get_company(company_id: UUID, db: DB) -> Company:
     """Get a single company by ID.

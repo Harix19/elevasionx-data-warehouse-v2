@@ -1,34 +1,50 @@
 const TOKEN_KEY = 'access_token';
 
-const getCookie = (name: string): string | null => {
-  if (typeof document === 'undefined') return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-  return null;
-};
-
 export const tokenStorage = {
   getToken(): string | null {
-    return getCookie(TOKEN_KEY);
+    if (typeof window === 'undefined') return null;
+    
+    // First try localStorage as fallback
+    const localToken = localStorage.getItem(TOKEN_KEY);
+    if (localToken) return localToken;
+    
+    // Then try cookies
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${TOKEN_KEY}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
   },
 
   setToken(token: string): void {
     if (typeof window === 'undefined') return;
-    // Set cookie (Secure and SameSite=Strict recommended)
-    // Note: HttpOnly can only be set by the server, but we can set the cookie from JS
-    // if the server doesn't do it. If the server sets it as HttpOnly, this JS set 
-    // will be ignored/overwritten by the server's header if configured correctly.
-    document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=86400; SameSite=Strict; Secure`;
+    
+    // Set both localStorage and cookie for redundancy
+    localStorage.setItem(TOKEN_KEY, token);
+    
+    // Set cookie (Secure only on HTTPS to allow localhost development)
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const secureFlag = isHttps ? 'Secure;' : '';
+    document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=86400; SameSite=Lax; ${secureFlag}`;
+    
+    console.log('[Auth] Token stored:', token.substring(0, 20) + '...');
   },
 
   removeToken(): void {
     if (typeof window === 'undefined') return;
-    // Remove cookie by setting max-age to 0
-    document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Strict; Secure`;
+    
+    // Remove from both
+    localStorage.removeItem(TOKEN_KEY);
+    
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const secureFlag = isHttps ? 'Secure;' : '';
+    document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax; ${secureFlag}`;
+    
+    console.log('[Auth] Token removed');
   },
 
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    const token = this.getToken();
+    console.log('[Auth] Auth check, token exists:', !!token);
+    return !!token;
   },
 };

@@ -1,7 +1,8 @@
 """JSON bulk operations service."""
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import select
 
 from app.models.company import Company
 from app.models.contact import Contact
@@ -16,8 +17,8 @@ from app.schemas.bulk import (
 BATCH_SIZE = 1000
 
 
-def bulk_create_companies(
-    db: Session,
+async def bulk_create_companies(
+    db: AsyncSession,
     records: list[BulkCompanyRecord],
     upsert: bool = True
 ) -> BulkResult:
@@ -45,12 +46,12 @@ def bulk_create_companies(
         try:
             if upsert:
                 # Upsert mode: INSERT ... ON CONFLICT DO UPDATE
-                batch_created, batch_updated = _upsert_companies_batch(db, batch)
+                batch_created, batch_updated = await _upsert_companies_batch(db, batch)
                 created += batch_created
                 updated += batch_updated
             else:
                 # Insert-only mode: Check for conflicts first
-                batch_created, batch_skipped = _insert_companies_batch(db, batch)
+                batch_created, batch_skipped = await _insert_companies_batch(db, batch)
                 created += batch_created
                 skipped += batch_skipped
         except Exception as e:
@@ -71,8 +72,8 @@ def bulk_create_companies(
     )
 
 
-def bulk_create_contacts(
-    db: Session,
+async def bulk_create_contacts(
+    db: AsyncSession,
     records: list[BulkContactRecord],
     upsert: bool = True
 ) -> BulkResult:
@@ -105,12 +106,12 @@ def bulk_create_contacts(
         try:
             if upsert:
                 # Upsert mode: INSERT ... ON CONFLICT DO UPDATE
-                batch_created, batch_updated = _upsert_contacts_batch(db, batch, domains)
+                batch_created, batch_updated = await _upsert_contacts_batch(db, batch, domains)
                 created += batch_created
                 updated += batch_updated
             else:
                 # Insert-only mode: Check for conflicts first
-                batch_created, batch_skipped = _insert_contacts_batch(db, batch, domains)
+                batch_created, batch_skipped = await _insert_contacts_batch(db, batch, domains)
                 created += batch_created
                 skipped += batch_skipped
         except Exception as e:
@@ -131,8 +132,8 @@ def bulk_create_contacts(
     )
 
 
-def _upsert_companies_batch(
-    db: Session,
+async def _upsert_companies_batch(
+    db: AsyncSession,
     batch: list[BulkCompanyRecord]
 ) -> tuple[int, int]:
     """
@@ -149,10 +150,12 @@ def _upsert_companies_batch(
     domains = [r['domain'] for r in values if r['domain']]
     existing_count = 0
     if domains:
-        existing_count = db.query(Company).filter(
+        stmt = select(Company).filter(
             Company.domain.in_(domains),
             Company.deleted_at.is_(None)
-        ).count()
+        )
+        result = await db.execute(stmt)
+        existing_count = len(result.scalars().all())
 
     # Perform upsert
     stmt = insert(Company).values(values)
@@ -181,8 +184,8 @@ def _upsert_companies_batch(
         }
     )
 
-    db.execute(stmt)
-    db.commit()
+    await db.execute(stmt)
+    await db.commit()
 
     created = len(batch) - existing_count
     updated = existing_count
@@ -190,8 +193,8 @@ def _upsert_companies_batch(
     return created, updated
 
 
-def _insert_companies_batch(
-    db: Session,
+async def _insert_companies_batch(
+    db: AsyncSession,
     batch: list[BulkCompanyRecord]
 ) -> tuple[int, int]:
     """
@@ -208,11 +211,12 @@ def _insert_companies_batch(
     domains = [r['domain'] for r in values if r['domain']]
     existing_domains = set()
     if domains:
-        existing = db.query(Company.domain).filter(
+        stmt = select(Company.domain).filter(
             Company.domain.in_(domains),
             Company.deleted_at.is_(None)
-        ).all()
-        existing_domains = {d[0] for d in existing}
+        )
+        result = await db.execute(stmt)
+        existing_domains = {d[0] for d in result.all()}
 
     # Filter out duplicates
     new_values = [r for r in values if not r['domain'] or r['domain'] not in existing_domains]
@@ -221,14 +225,14 @@ def _insert_companies_batch(
     # Insert new records
     if new_values:
         stmt = insert(Company).values(new_values)
-        db.execute(stmt)
-        db.commit()
+        await db.execute(stmt)
+        await db.commit()
 
     return len(new_values), skipped
 
 
-def _upsert_contacts_batch(
-    db: Session,
+async def _upsert_contacts_batch(
+    db: AsyncSession,
     batch: list[BulkContactRecord],
     domains: set[str]
 ) -> tuple[int, int]:
@@ -242,11 +246,12 @@ def _upsert_contacts_batch(
     # Resolve company IDs from domains
     domain_to_company = {}
     if domains:
-        companies = db.query(Company.id, Company.domain).filter(
+        stmt = select(Company.id, Company.domain).filter(
             Company.domain.in_(list(domains)),
             Company.deleted_at.is_(None)
-        ).all()
-        domain_to_company = {c.domain: c.id for c in companies}
+        )
+        result = await db.execute(stmt)
+        domain_to_company = {c.domain: c.id for c in result.all()}
 
     # Convert to dicts and add company_id
     values = []
@@ -262,10 +267,12 @@ def _upsert_contacts_batch(
     emails = [r['email'] for r in values if r['email']]
     existing_count = 0
     if emails:
-        existing_count = db.query(Contact).filter(
+        stmt = select(Contact).filter(
             Contact.email.in_(emails),
             Contact.deleted_at.is_(None)
-        ).count()
+        )
+        result = await db.execute(stmt)
+        existing_count = len(result.scalars().all())
 
     # Perform upsert
     stmt = insert(Contact).values(values)
@@ -294,8 +301,8 @@ def _upsert_contacts_batch(
         }
     )
 
-    db.execute(stmt)
-    db.commit()
+    await db.execute(stmt)
+    await db.commit()
 
     created = len(batch) - existing_count
     updated = existing_count
@@ -303,8 +310,8 @@ def _upsert_contacts_batch(
     return created, updated
 
 
-def _insert_contacts_batch(
-    db: Session,
+async def _insert_contacts_batch(
+    db: AsyncSession,
     batch: list[BulkContactRecord],
     domains: set[str]
 ) -> tuple[int, int]:
@@ -318,11 +325,12 @@ def _insert_contacts_batch(
     # Resolve company IDs from domains
     domain_to_company = {}
     if domains:
-        companies = db.query(Company.id, Company.domain).filter(
+        stmt = select(Company.id, Company.domain).filter(
             Company.domain.in_(list(domains)),
             Company.deleted_at.is_(None)
-        ).all()
-        domain_to_company = {c.domain: c.id for c in companies}
+        )
+        result = await db.execute(stmt)
+        domain_to_company = {c.domain: c.id for c in result.all()}
 
     # Convert to dicts and add company_id
     values = []
@@ -338,11 +346,12 @@ def _insert_contacts_batch(
     emails = [r['email'] for r in values if r['email']]
     existing_emails = set()
     if emails:
-        existing = db.query(Contact.email).filter(
+        stmt = select(Contact.email).filter(
             Contact.email.in_(emails),
             Contact.deleted_at.is_(None)
-        ).all()
-        existing_emails = {e[0] for e in existing}
+        )
+        result = await db.execute(stmt)
+        existing_emails = {e[0] for e in result.all()}
 
     # Filter out duplicates
     new_values = [r for r in values if not r['email'] or r['email'] not in existing_emails]
@@ -351,7 +360,7 @@ def _insert_contacts_batch(
     # Insert new records
     if new_values:
         stmt = insert(Contact).values(new_values)
-        db.execute(stmt)
-        db.commit()
+        await db.execute(stmt)
+        await db.commit()
 
     return len(new_values), skipped

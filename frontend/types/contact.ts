@@ -26,12 +26,43 @@ export interface Contact {
 
 export type SeniorityLevel = 'c_level' | 'director' | 'manager' | 'individual_contributor' | 'other' | null;
 
+// Range filter value type
+export interface RangeValue {
+  min?: number;
+  max?: number;
+}
+
+// Tags filter value type
+export interface TagsValue {
+  tags: string[];
+  logic?: 'or' | 'and';
+}
+
+// Frontend filter state (includes nested structures for UI)
+export interface ContactFilterState {
+  limit?: number;
+  cursor?: string;
+  q?: string;
+  seniority_level?: SeniorityLevel;
+  department?: string;
+  lead_status?: Contact['status'];
+  lead_score?: RangeValue;
+  tags_a?: TagsValue;
+  tags_b?: TagsValue;
+  tags_c?: TagsValue;
+}
+
+// API filter params (flattened for backend)
 export interface ContactsListParams {
   limit?: number;
   cursor?: string;
+  q?: string;
   tags_a?: string[];
   tags_b?: string[];
   tags_c?: string[];
+  tags_a_all?: string[];
+  tags_b_all?: string[];
+  tags_c_all?: string[];
   seniority_level?: SeniorityLevel;
   department?: string;
   lead_status?: Contact['status'];
@@ -44,4 +75,19 @@ export interface ContactsListResponse {
   next_cursor: string | null;
   has_more: boolean;
   total_count: number | null;
+}
+
+// Apollo-style filter options
+export interface RangeConfig {
+  min: number;
+  max: number;
+}
+
+export interface ContactFilterOptions {
+  seniority_levels?: string[];
+  departments?: string[];
+  lead_score_range?: RangeConfig;
+  tags_a?: string[];
+  tags_b?: string[];
+  tags_c?: string[];
 }

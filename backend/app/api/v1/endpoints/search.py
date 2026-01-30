@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select, func, literal, union_all
 from sqlalchemy.dialects.postgresql import TSVECTOR
 
-from app.api.deps import DB
+from app.api.deps import DB, RequireRead
 from app.models.company import Company
 from app.models.contact import Contact
 from app.schemas.search import SearchResponse, SearchType, SearchResultItem
@@ -18,6 +18,7 @@ async def search(
     q: str = Query(..., min_length=1, description="Search query"),
     type: SearchType = Query(SearchType.ALL, description="Type of entities to search"),
     limit: int = Query(20, ge=1, le=50, description="Max results to return"),
+    current_user = RequireRead,
 ) -> dict:
     """Full-text search across companies and contacts.
 

@@ -63,13 +63,24 @@ export function DataTableToolbar({
     onFilterChange?.({});
   };
 
-  // Get active filter display labels
+  // Get active filter display labels with proper option labels
   const activeFilterPills = Object.entries(activeFilters)
     .filter(([_, value]) => value !== undefined && value !== '' && value !== null)
     .map(([key, value]) => {
       const filterConfig = filters.find(f => f.key === key);
       const label = filterConfig?.label || key;
-      const displayValue = Array.isArray(value) ? value.join(', ') : value;
+      // Look up the display label for the value from options
+      let displayValue: string;
+      if (Array.isArray(value)) {
+        const valueLabels = value.map(v => {
+          const option = filterConfig?.options?.find(opt => opt.value === v);
+          return option?.label || v;
+        });
+        displayValue = valueLabels.join(', ');
+      } else {
+        const option = filterConfig?.options?.find(opt => opt.value === value);
+        displayValue = option?.label || value;
+      }
       return { key, label, value: displayValue };
     });
 
@@ -178,7 +189,7 @@ function FilterDropdown({
           <Filter className="w-4 h-4" />
           <span className="font-semibold">{config.label}</span>
           {value && (
-            <span className="ml-1 text-primary">: {value}</span>
+            <span className="ml-1 text-primary">: {config.options?.find(opt => opt.value === value)?.label || value}</span>
           )}
           <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </Button>

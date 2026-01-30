@@ -3,9 +3,12 @@
 import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router
 from app.core.logging import configure_logging, get_logger
+from app.middleware.rate_limit import RateLimitMiddleware, SimpleRateLimitMiddleware
+from app.core.config import settings
 
 configure_logging()
 logger = get_logger(__name__)
@@ -26,6 +29,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify actual origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -39,6 +51,20 @@ async def log_requests(request: Request, call_next):
         f"- Duration: {process_time:.4f}s"
     )
     return response
+
+
+# Rate limiting middleware
+# Use Redis-based middleware in production, simple in-memory for development
+if settings.RATE_LIMIT_ENABLED:
+    try:
+        app.add_middleware(RateLimitMiddleware)
+        logger.info("Rate limiting enabled with Redis backend")
+    except Exception as e:
+        logger.warning(
+            f"Failed to initialize Redis rate limiter, using in-memory: {e}"
+        )
+        app.add_middleware(SimpleRateLimitMiddleware)
+        logger.info("Rate limiting enabled with in-memory backend")
 
 
 # Include API router

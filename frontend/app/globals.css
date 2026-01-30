@@ -110,28 +110,168 @@
   .surface-card {
     @apply bg-card text-card-foreground border border-border rounded-lg shadow-sm transition-all;
   }
-  
+
   .surface-card:hover {
     @apply border-zinc-700;
   }
-  
+
   .nav-item {
     @apply flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-accent;
   }
-  
+
   .nav-item-active {
     @apply bg-accent text-foreground font-medium;
   }
-  
+
   .table-header {
     @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border;
   }
-  
+
   .table-row {
     @apply border-b border-border hover:bg-background-alt transition-colors;
   }
-  
+
   .table-cell {
     @apply px-4 py-4 text-sm whitespace-nowrap;
+  }
+
+  /* Glass morphism utilities */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md;
+  }
+
+  .dark .glass {
+    @apply bg-zinc-900/80;
+  }
+
+  .glass-border {
+    @apply border-white/20;
+  }
+
+  .dark .glass-border {
+    @apply border-zinc-800/50;
+  }
+
+  /* Text utilities */
+  .text-foreground-muted {
+    color: var(--foreground-muted);
+  }
+
+  .text-primary-light {
+    color: var(--primary);
+  }
+
+  /* Filter sidebar specific styles */
+  .filter-sidebar {
+    @apply w-[280px] flex flex-col border-r border-border bg-background h-full;
+  }
+
+  .filter-sidebar-collapsed {
+    @apply w-14 flex flex-col items-center py-4 border-r border-border bg-background;
+  }
+
+  .filter-group {
+    @apply border-b border-border last:border-b-0;
+  }
+
+  .filter-group-header {
+    @apply flex w-full items-center justify-between py-3 px-4 text-left hover:bg-accent/50 transition-colors;
+  }
+
+  .filter-group-content {
+    @apply px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-200;
+  }
+
+  .filter-option {
+    @apply flex items-center gap-3 py-2 px-2 rounded-md cursor-pointer transition-colors hover:bg-accent/50;
+  }
+
+  .filter-option-selected {
+    @apply bg-primary/10;
+  }
+
+  /* Active filter pill styles */
+  .filter-pill {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm
+           bg-primary/10 text-primary border border-primary/20
+           hover:bg-primary/20 transition-colors;
+  }
+
+  .filter-pill-remove {
+    @apply ml-1 p-0.5 rounded-full hover:bg-primary/20 transition-colors;
+  }
+
+  /* Range filter styles */
+  .range-input {
+    @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+           transition-all;
+  }
+
+  /* Logic toggle styles */
+  .logic-toggle {
+    @apply flex rounded-md border border-gray-300 overflow-hidden;
+  }
+
+  .logic-toggle-option {
+    @apply px-3 py-1 text-xs font-medium transition-colors bg-background hover:bg-accent;
+  }
+
+  .logic-toggle-option-active {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  /* Scrollbar styles for filter lists */
+  .filter-scroll {
+    @apply overflow-y-auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .filter-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .filter-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .filter-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 3px;
+  }
+
+  /* Animations */
+  @keyframes slide-in-left {
+    from {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.2s ease-out;
+  }
+}
+
+@layer utilities {
+  /* Fade in up animation */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.2s ease-out;
   }
 }

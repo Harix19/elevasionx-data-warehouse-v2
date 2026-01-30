@@ -72,6 +72,7 @@ async def list_contacts(
     db: DB,
     limit: int = 20,
     cursor: str | None = None,
+    q: str | None = None,
     # Tag filters - OR logic (any tag matches)
     tags_a: str | None = None,
     tags_b: str | None = None,
@@ -124,6 +125,17 @@ async def list_contacts(
 
     # Build query with soft delete filter
     stmt = select(Contact).where(Contact.deleted_at.is_(None))
+
+    # Apply search filter if provided
+    if q:
+        stmt = stmt.where(
+            or_(
+                Contact.full_name.ilike(f"%{q}%"),
+                Contact.email.ilike(f"%{q}%"),
+                Contact.working_company_name.ilike(f"%{q}%"),
+                Contact.job_title.ilike(f"%{q}%"),
+            )
+        )
 
     # Apply string filters (case-insensitive)
     if seniority_level:
@@ -220,6 +232,90 @@ async def list_contacts(
         "has_more": has_more,
         "total_count": None,  # Expensive to compute; leave null
     }
+
+
+@router.get("/filter-options")
+async def get_contact_filter_options(db: DB) -> dict:
+    """Get available filter options for contacts.
+
+    Returns distinct values for filterable fields that have data.
+    Only includes fields that have actual data (progressive disclosure pattern).
+    """
+    from sqlalchemy import func, distinct
+
+    options = {}
+
+    # Get distinct seniority levels
+    seniority_stmt = (
+        select(distinct(Contact.seniority_level))
+        .where(Contact.seniority_level.is_not(None))
+        .where(Contact.deleted_at.is_(None))
+        .order_by(Contact.seniority_level)
+    )
+    seniority_result = await db.execute(seniority_stmt)
+    seniority_levels = [r for r in seniority_result.scalars().all() if r]
+    if seniority_levels:
+        options["seniority_levels"] = seniority_levels
+
+    # Get distinct departments
+    department_stmt = (
+        select(distinct(Contact.department))
+        .where(Contact.department.is_not(None))
+        .where(Contact.deleted_at.is_(None))
+        .order_by(Contact.department)
+    )
+    department_result = await db.execute(department_stmt)
+    departments = [r for r in department_result.scalars().all() if r]
+    if departments:
+        options["departments"] = departments
+
+    # Get lead score range
+    lead_score_stmt = select(
+        func.min(Contact.lead_score),
+        func.max(Contact.lead_score),
+    ).where(
+        Contact.lead_score.is_not(None),
+        Contact.deleted_at.is_(None),
+    )
+    lead_score_result = await db.execute(lead_score_stmt)
+    lead_score_min, lead_score_max = lead_score_result.one_or_none() or (None, None)
+    if lead_score_min is not None and lead_score_max is not None:
+        options["lead_score_range"] = {
+            "min": int(lead_score_min),
+            "max": int(lead_score_max),
+        }
+
+    # Get distinct tags from custom_tags_a
+    tags_a_stmt = select(distinct(func.unnest(Contact.custom_tags_a))).where(
+        Contact.custom_tags_a.is_not(None),
+        Contact.deleted_at.is_(None),
+    )
+    tags_a_result = await db.execute(tags_a_stmt)
+    tags_a = sorted([r for r in tags_a_result.scalars().all() if r])
+    if tags_a:
+        options["tags_a"] = tags_a
+
+    # Get distinct tags from custom_tags_b
+    tags_b_stmt = select(distinct(func.unnest(Contact.custom_tags_b))).where(
+        Contact.custom_tags_b.is_not(None),
+        Contact.deleted_at.is_(None),
+    )
+    tags_b_result = await db.execute(tags_b_stmt)
+    tags_b = sorted([r for r in tags_b_result.scalars().all() if r])
+    if tags_b:
+        options["tags_b"] = tags_b
+
+    # Get distinct tags from custom_tags_c
+    tags_c_stmt = select(distinct(func.unnest(Contact.custom_tags_c))).where(
+        Contact.custom_tags_c.is_not(None),
+        Contact.deleted_at.is_(None),
+    )
+    tags_c_result = await db.execute(tags_c_stmt)
+    tags_c = sorted([r for r in tags_c_result.scalars().all() if r])
+    if tags_c:
+        options["tags_c"] = tags_c
+
+    return options
 
 
 @router.get("/{contact_id}", response_model=ContactResponse)
@@ -362,3 +458,4 @@ async def restore_contact(contact_id: UUID, db: DB) -> Contact:
     await db.commit()
     await db.refresh(contact)
     return contact
+

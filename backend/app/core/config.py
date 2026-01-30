@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Rate Limiting
+    RATE_LIMIT_DEFAULT: int = 1000  # requests per minute
+    RATE_LIMIT_PREMIUM: int = 2000
+    RATE_LIMIT_ENABLED: bool = True
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def convert_database_url(cls, v: str) -> str:

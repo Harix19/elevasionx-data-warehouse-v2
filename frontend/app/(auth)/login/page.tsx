@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { tokenStorage } from '@/lib/auth';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,15 +24,27 @@ export default function LoginPage() {
     const password = formData.get('password') as string;
 
     try {
-      // For demo, accept any non-empty credentials
-      if (email && password) {
-        tokenStorage.setToken('demo-token');
-        router.replace('/');
+      // Use URLSearchParams for OAuth2PasswordRequestForm (expects form-urlencoded)
+      const params = new URLSearchParams();
+      params.append('username', email);
+      params.append('password', password);
+
+      const response = await api.post('/auth/token', params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      const { access_token } = response.data;
+      tokenStorage.setToken(access_token);
+      router.replace('/');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      if (err.response?.status === 401) {
+        setError('Invalid email or password');
       } else {
-        setError('Invalid credentials');
+        setError('An error occurred during login');
       }
-    } catch (err) {
-      setError('An error occurred during login');
     } finally {
       setIsLoading(false);
     }

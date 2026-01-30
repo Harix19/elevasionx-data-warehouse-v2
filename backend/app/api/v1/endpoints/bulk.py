@@ -1,10 +1,9 @@
 """Bulk import endpoints."""
 
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, get_current_user
-from app.models.user import User
+from app.api.deps import get_db, DB, RequireWrite
 from app.schemas.bulk import (
     BulkImportResponse,
     BulkCompanyRequest,
@@ -20,10 +19,10 @@ router = APIRouter()
 
 @router.post("/import", response_model=BulkImportResponse, status_code=202)
 async def import_csv(
+    current_user: RequireWrite,
     file: UploadFile = File(...),
     type: str = Query(..., description="Import type: 'companies' or 'contacts'"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> BulkImportResponse:
     """
     Import companies or contacts from CSV file.
@@ -75,18 +74,18 @@ async def import_csv(
 
     # Route to appropriate importer
     if type == 'companies':
-        result = import_companies_csv(db, file_content)
+        result = await import_companies_csv(db, file_content)
     else:  # contacts
-        result = import_contacts_csv(db, file_content)
+        result = await import_contacts_csv(db, file_content)
 
     return result
 
 
 @router.post("/companies", response_model=BulkResult)
-def bulk_companies(
+async def bulk_companies(
     request: BulkCompanyRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: RequireWrite,
+    db: AsyncSession = Depends(get_db),
 ) -> BulkResult:
     """
     Bulk create or update companies via JSON.
@@ -101,14 +100,14 @@ def bulk_companies(
     - Skips duplicate domains
     - Only creates new records
     """
-    return bulk_create_companies(db, request.records, request.upsert)
+    return await bulk_create_companies(db, request.records, request.upsert)
 
 
 @router.post("/contacts", response_model=BulkResult)
-def bulk_contacts(
+async def bulk_contacts(
     request: BulkContactRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: RequireWrite,
+    db: AsyncSession = Depends(get_db),
 ) -> BulkResult:
     """
     Bulk create or update contacts via JSON.
@@ -125,4 +124,4 @@ def bulk_contacts(
     - Skips duplicate emails
     - Only creates new records
     """
-    return bulk_create_contacts(db, request.records, request.upsert)
+    return await bulk_create_contacts(db, request.records, request.upsert)

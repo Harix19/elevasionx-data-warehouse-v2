@@ -26,12 +26,45 @@ export interface Company {
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'customer' | 'churned';
 
+// Range filter value type
+export interface RangeValue {
+  min?: number;
+  max?: number;
+}
+
+// Tags filter value type
+export interface TagsValue {
+  tags: string[];
+  logic?: 'or' | 'and';
+}
+
+// Frontend filter state (includes nested structures for UI)
+export interface CompanyFilterState {
+  limit?: number;
+  cursor?: string;
+  q?: string;
+  industry?: string;
+  country?: string;
+  lead_status?: LeadStatus;
+  revenue?: RangeValue;
+  lead_score?: RangeValue;
+  employee_count?: RangeValue;
+  tags_a?: TagsValue;
+  tags_b?: TagsValue;
+  tags_c?: TagsValue;
+}
+
+// API filter params (flattened for backend)
 export interface CompaniesListParams {
   limit?: number;
   cursor?: string;
+  q?: string;
   tags_a?: string[];
   tags_b?: string[];
   tags_c?: string[];
+  tags_a_all?: string[];
+  tags_b_all?: string[];
+  tags_c_all?: string[];
   industry?: string;
   country?: string;
   lead_status?: LeadStatus;
@@ -48,4 +81,21 @@ export interface CompaniesListResponse {
   next_cursor: string | null;
   has_more: boolean;
   total_count: number | null;
+}
+
+// Apollo-style filter options
+export interface RangeConfig {
+  min: number;
+  max: number;
+}
+
+export interface CompanyFilterOptions {
+  industries?: string[];
+  countries?: string[];
+  revenue_range?: RangeConfig;
+  lead_score_range?: RangeConfig;
+  employee_count_range?: RangeConfig;
+  tags_a?: string[];
+  tags_b?: string[];
+  tags_c?: string[];
 }

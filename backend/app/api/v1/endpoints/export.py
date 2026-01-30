@@ -5,8 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.api.deps import get_db, get_current_user
-from app.models.user import User
+from app.api.deps import get_db, RequireRead
 from app.services.export_service import (
     generate_companies_csv,
     generate_contacts_csv,
@@ -20,6 +19,7 @@ router = APIRouter()
 
 @router.get("/companies")
 async def export_companies(
+    current_user: RequireRead,
     industry: str | None = None,
     country: str | None = None,
     status: str | None = None,
@@ -30,7 +30,6 @@ async def export_companies(
     tags: str | None = Query(None, description="Comma-separated tags"),
     columns: str | None = Query(None, description="Comma-separated column names"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Export companies as streaming CSV.
@@ -94,6 +93,7 @@ async def export_companies(
 
 @router.get("/contacts")
 async def export_contacts(
+    current_user: RequireRead,
     seniority_level: str | None = None,
     department: str | None = None,
     status: str | None = None,
@@ -101,7 +101,6 @@ async def export_contacts(
     tags: str | None = Query(None, description="Comma-separated tags"),
     columns: str | None = Query(None, description="Comma-separated column names"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Export contacts as streaming CSV.

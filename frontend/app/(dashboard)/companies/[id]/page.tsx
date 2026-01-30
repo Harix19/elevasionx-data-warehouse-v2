@@ -18,11 +18,11 @@ import {
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
-  new: 'bg-blue-100 text-blue-800',
-  contacted: 'bg-yellow-100 text-yellow-800',
-  qualified: 'bg-green-100 text-green-800',
-  customer: 'bg-purple-100 text-purple-800',
-  churned: 'bg-red-100 text-red-800',
+  new: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  contacted: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+  qualified: 'bg-green-500/10 text-green-400 border-green-500/20',
+  customer: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  churned: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
 export default function CompanyDetailPage() {
@@ -77,11 +77,11 @@ export default function CompanyDetailPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 bg-gray-100 animate-pulse rounded w-48" />
-        <Card>
+        <div className="h-8 bg-zinc-800 animate-pulse rounded w-48" />
+        <Card className="surface-card">
           <CardContent className="p-6 space-y-4">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-6 bg-gray-100 animate-pulse rounded" />
+              <div key={i} className="h-6 bg-zinc-800 animate-pulse rounded" />
             ))}
           </CardContent>
         </Card>
@@ -92,12 +92,12 @@ export default function CompanyDetailPage() {
   if (error || !company) {
     return (
       <div className="space-y-6">
-        <Link href="/companies" className="text-blue-600 hover:underline">
+        <Link href="/companies" className="text-primary hover:underline">
           ← Back to Companies
         </Link>
-        <Card>
+        <Card className="surface-card">
           <CardContent className="p-6">
-            <p className="text-red-600">
+            <p className="text-red-400">
               {(error as Error)?.message || 'Company not found'}
             </p>
           </CardContent>
@@ -113,20 +113,20 @@ export default function CompanyDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/companies" className="text-blue-600 hover:underline">
-            <Button variant="ghost" size="sm">
+          <Link href="/companies">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
           </Link>
           <div>
-            <h2 className="text-2xl font-bold">{company.name}</h2>
-            <p className="text-gray-600">{company.domain || 'No domain'}</p>
+            <h2 className="text-2xl font-bold text-foreground">{company.name}</h2>
+            <p className="text-muted-foreground">{company.domain || 'No domain'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {company.status && (
-            <Badge className={statusColors[company.status]}>
+            <Badge variant="outline" className={statusColors[company.status]}>
               {company.status}
             </Badge>
           )}
@@ -159,15 +159,15 @@ export default function CompanyDetailPage() {
       </div>
 
       {errorMessage && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded">
           {errorMessage}
         </div>
       )}
 
       {/* Basic Information */}
-      <Card>
+      <Card className="surface-card">
         <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
+          <CardTitle className="text-foreground">Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <DetailRow
@@ -199,9 +199,9 @@ export default function CompanyDetailPage() {
       </Card>
 
       {/* Metrics */}
-      <Card>
+      <Card className="surface-card">
         <CardHeader>
-          <CardTitle>Metrics</CardTitle>
+          <CardTitle className="text-foreground">Metrics</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <DetailRow
@@ -237,9 +237,9 @@ export default function CompanyDetailPage() {
       </Card>
 
       {/* URLs */}
-      <Card>
+      <Card className="surface-card">
         <CardHeader>
-          <CardTitle>Links</CardTitle>
+          <CardTitle className="text-foreground">Links</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <DetailRow
@@ -270,10 +270,10 @@ export default function CompanyDetailPage() {
       </Card>
 
       {/* Contacts */}
-      <Card>
+      <Card className="surface-card">
         <CardHeader>
-          <CardTitle>Contacts at this company</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-foreground">Contacts at this company</CardTitle>
+          <CardDescription className="text-muted-foreground">
             {contacts?.items?.length || 0} contact{((contacts?.items?.length || 0) !== 1) ? 's' : ''} linked
           </CardDescription>
         </CardHeader>
@@ -281,17 +281,17 @@ export default function CompanyDetailPage() {
           {contacts?.items && contacts.items.length > 0 ? (
             <div className="space-y-2">
               {contacts.items.map((contact: any) => (
-                <div key={contact.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                <div key={contact.id} className="flex items-center justify-between p-3 border border-border rounded hover:bg-zinc-800/50 transition-colors">
                   <div>
-                    <p className="font-medium">{contact.first_name} {contact.last_name}</p>
-                    <p className="text-sm text-gray-600">{contact.email}</p>
+                    <p className="font-medium text-foreground">{contact.first_name} {contact.last_name}</p>
+                    <p className="text-sm text-muted-foreground">{contact.email}</p>
                   </div>
-                  <p className="text-sm text-gray-500">{contact.job_title || 'No title'}</p>
+                  <p className="text-sm text-muted-foreground">{contact.job_title || 'No title'}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-gray-500">No contacts linked to this company</p>
+            <p className="text-muted-foreground">No contacts linked to this company</p>
           )}
         </CardContent>
       </Card>
@@ -341,21 +341,21 @@ function DetailRow({
   options?: string[];
 }) {
   return (
-    <div className="flex items-start justify-between py-2 border-b last:border-0">
-      <span className="font-medium text-gray-700 w-48">{label}:</span>
+    <div className="flex items-start justify-between py-2 border-b border-border last:border-0">
+      <span className="font-medium text-muted-foreground w-48">{label}:</span>
       {isEditing ? (
         textarea ? (
           <textarea
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded-md"
+            className="flex-1 px-3 py-2 border border-border rounded-md bg-zinc-900 text-foreground focus:border-primary/50 focus:outline-none"
             rows={3}
           />
         ) : type === 'select' ? (
           <select
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded-md"
+            className="flex-1 px-3 py-2 border border-border rounded-md bg-zinc-900 text-foreground focus:border-primary/50 focus:outline-none"
           >
             <option value="">None</option>
             {options?.map((opt) => (
@@ -369,11 +369,11 @@ function DetailRow({
             type={type}
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded-md"
+            className="flex-1 px-3 py-2 border border-border rounded-md bg-zinc-900 text-foreground focus:border-primary/50 focus:outline-none"
           />
         )
       ) : (
-        <span className="flex-1 text-gray-900">{value || '-'}</span>
+        <span className="flex-1 text-foreground">{value || '-'}</span>
       )}
     </div>
   );

@@ -1,15 +1,12 @@
 import axios from 'axios';
 import { tokenStorage } from './auth';
-import type { CompaniesListParams, CompaniesListResponse } from '@/types/company';
-import type { ContactsListParams, ContactsListResponse } from '@/types/contact';
+import type { CompaniesListParams, CompaniesListResponse, CompanyFilterOptions } from '@/types/company';
+import type { ContactsListParams, ContactsListResponse, ContactFilterOptions } from '@/types/contact';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Add auth interceptor to include token in requests
@@ -17,6 +14,9 @@ api.interceptors.request.use((config) => {
   const token = tokenStorage.getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('[API] Adding auth header for:', config.url, 'Token:', token.substring(0, 20) + '...');
+  } else {
+    console.log('[API] No token found for:', config.url);
   }
   return config;
 });
@@ -25,7 +25,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('[API] Response error:', error.response?.status, error.config?.url);
     if (error.response?.status === 401) {
+      console.log('[API] 401 Unauthorized - redirecting to login');
       tokenStorage.removeToken();
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
@@ -39,6 +41,11 @@ api.interceptors.response.use(
 export const companiesApi = {
   list: async (params?: CompaniesListParams): Promise<CompaniesListResponse> => {
     const response = await api.get<CompaniesListResponse>('/companies', { params });
+    return response.data;
+  },
+
+  getFilterOptions: async (): Promise<CompanyFilterOptions> => {
+    const response = await api.get<CompanyFilterOptions>('/companies/filter-options');
     return response.data;
   },
 
@@ -98,6 +105,11 @@ export const contactsApi = {
     return response.data;
   },
 
+  getFilterOptions: async (): Promise<ContactFilterOptions> => {
+    const response = await api.get<ContactFilterOptions>('/contacts/filter-options');
+    return response.data;
+  },
+
   getById: async (id: string) => {
     const response = await api.get(`/contacts/${id}`);
     return response.data;
@@ -145,10 +157,8 @@ export const importApi = {
   companies: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post('/import/companies', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const response = await api.post('/bulk/import', formData, {
+      params: { type: 'companies' },
     });
     return response.data;
   },
@@ -156,11 +166,39 @@ export const importApi = {
   contacts: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post('/import/contacts', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const response = await api.post('/bulk/import', formData, {
+      params: { type: 'contacts' },
     });
+    return response.data;
+  },
+
+  bulkCompanies: async (records: any[]) => {
+    const response = await api.post('/bulk/companies', { records });
+    return response.data;
+  },
+
+  bulkContacts: async (records: any[]) => {
+    const response = await api.post('/bulk/contacts', { records });
+    return response.data;
+  },
+};
+
+// Stats API
+export interface StatsResponse {
+  total_companies: number;
+  total_contacts: number;
+  total_sources: number;
+  recent_activity: Array<{
+    type: 'company' | 'contact';
+    id: string;
+    name: string;
+    created_at: string | null;
+  }>;
+}
+
+export const statsApi = {
+  get: async (): Promise<StatsResponse> => {
+    const response = await api.get<StatsResponse>('/stats');
     return response.data;
   },
 };

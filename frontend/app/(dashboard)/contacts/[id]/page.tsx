@@ -18,11 +18,11 @@ import {
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
-  new: 'bg-blue-100 text-blue-800',
-  contacted: 'bg-yellow-100 text-yellow-800',
-  qualified: 'bg-green-100 text-green-800',
-  customer: 'bg-purple-100 text-purple-800',
-  churned: 'bg-red-100 text-red-800',
+  new: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  contacted: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+  qualified: 'bg-green-500/10 text-green-400 border-green-500/20',
+  customer: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  churned: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
 export default function ContactDetailPage() {
