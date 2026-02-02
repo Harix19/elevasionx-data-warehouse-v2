@@ -77,11 +77,11 @@ export default function ContactDetailPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 bg-gray-100 animate-pulse rounded w-48" />
-        <Card>
+        <div className="h-8 bg-zinc-800 animate-pulse rounded w-48" />
+        <Card className="surface-card">
           <CardContent className="p-6 space-y-4">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-6 bg-gray-100 animate-pulse rounded" />
+              <div key={i} className="h-6 bg-zinc-800 animate-pulse rounded" />
             ))}
           </CardContent>
         </Card>
@@ -92,12 +92,15 @@ export default function ContactDetailPage() {
   if (error || !contact) {
     return (
       <div className="space-y-6">
-        <Link href="/contacts" className="text-blue-600 hover:underline">
-          ← Back to Contacts
+        <Link href="/contacts">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Contacts
+          </Button>
         </Link>
-        <Card>
+        <Card className="surface-card">
           <CardContent className="p-6">
-            <p className="text-red-600">
+            <p className="text-red-400">
               {(error as Error)?.message || 'Contact not found'}
             </p>
           </CardContent>
@@ -113,15 +116,13 @@ export default function ContactDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/contacts" className="text-blue-600 hover:underline">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          </Link>
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={() => router.push('/contacts')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
           <div>
-            <h2 className="text-2xl font-bold">{contact.full_name}</h2>
-            <p className="text-gray-600">{contact.email || 'No email'}</p>
+            <h2 className="text-2xl font-bold text-foreground">{contact.full_name}</h2>
+            <p className="text-muted-foreground">{contact.email || 'No email'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -159,15 +160,15 @@ export default function ContactDetailPage() {
       </div>
 
       {errorMessage && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded">
           {errorMessage}
         </div>
       )}
 
       {/* Basic Information */}
-      <Card>
+      <Card className="surface-card">
         <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
+          <CardTitle className="text-foreground">Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <DetailRow
@@ -205,9 +206,9 @@ export default function ContactDetailPage() {
       </Card>
 
       {/* Work Information */}
-      <Card>
+      <Card className="surface-card">
         <CardHeader>
-          <CardTitle>Work Information</CardTitle>
+          <CardTitle className="text-foreground">Work Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <DetailRow
@@ -248,9 +249,9 @@ export default function ContactDetailPage() {
       </Card>
 
       {/* Metrics */}
-      <Card>
+      <Card className="surface-card">
         <CardHeader>
-          <CardTitle>Metrics</CardTitle>
+          <CardTitle className="text-foreground">Metrics</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <DetailRow
@@ -279,10 +280,10 @@ export default function ContactDetailPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="bg-zinc-900 border-zinc-800">
           <DialogHeader>
-            <DialogTitle>Delete Contact</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-foreground">Delete Contact</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Are you sure you want to delete "{contact.full_name}"? This action will soft-delete the contact and it can be restored later.
             </DialogDescription>
           </DialogHeader>
@@ -326,14 +327,14 @@ function DetailRow({
     : value;
 
   return (
-    <div className="flex items-start justify-between py-2 border-b last:border-0">
-      <span className="font-medium text-gray-700 w-48">{label}:</span>
+    <div className="flex items-start justify-between py-2 border-b last:border-0 border-border">
+      <span className="font-medium text-muted-foreground w-48">{label}:</span>
       {isEditing ? (
         type === 'select' ? (
           <select
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded-md"
+            className="flex-1 px-3 py-2 bg-zinc-900 text-foreground border border-border rounded-md focus:border-primary/50 focus:outline-none"
           >
             <option value="">None</option>
             {(options as any)?.map((opt: any) => (
@@ -347,11 +348,11 @@ function DetailRow({
             type={type}
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded-md"
+            className="flex-1 px-3 py-2 bg-zinc-900 text-foreground border border-border rounded-md focus:border-primary/50 focus:outline-none"
           />
         )
       ) : (
-        <span className="flex-1 text-gray-900">{displayValue || '-'}</span>
+        <span className="flex-1 text-foreground">{displayValue || '-'}</span>
       )}
     </div>
   );

@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import DB
+from app.api.deps import DB, RequireRead, RequireWrite
 from app.models.company import Company
 from app.models.contact import Contact
 from app.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse
@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
-async def create_company(company_in: CompanyCreate, db: DB) -> Company:
+async def create_company(company_in: CompanyCreate, db: DB, current_user: RequireWrite) -> Company:
     """Create a new company.
 
     Story 2.1: Create Company
@@ -52,6 +52,7 @@ async def create_company(company_in: CompanyCreate, db: DB) -> Company:
 @router.get("/", response_model=PaginatedResponse[CompanyResponse])
 async def list_companies(
     db: DB,
+    current_user: RequireRead,
     limit: int = 20,
     cursor: str | None = None,
     # Tag filters - OR logic (any tag matches)
@@ -235,7 +236,7 @@ async def list_companies(
 
 
 @router.get("/filter-options")
-async def get_company_filter_options(db: DB) -> dict:
+async def get_company_filter_options(db: DB, current_user: RequireRead) -> dict:
     """Get available filter options for companies.
 
     Returns distinct values for filterable fields that have data.
@@ -351,7 +352,7 @@ async def get_company_filter_options(db: DB) -> dict:
 
 
 @router.get("/{company_id}", response_model=CompanyResponse)
-async def get_company(company_id: UUID, db: DB) -> Company:
+async def get_company(company_id: UUID, db: DB, current_user: RequireRead) -> Company:
     """Get a single company by ID.
 
     Story 2.3: Read Company
@@ -378,6 +379,7 @@ async def update_company(
     company_id: UUID,
     company_in: CompanyUpdate,
     db: DB,
+    current_user: RequireWrite,
 ) -> Company:
     """Update a company.
 
@@ -423,7 +425,7 @@ async def update_company(
 
 
 @router.delete("/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_company(company_id: UUID, db: DB) -> None:
+async def delete_company(company_id: UUID, db: DB, current_user: RequireWrite) -> None:
     """Soft delete a company.
 
     Story 2.4: Soft Delete
@@ -449,7 +451,7 @@ async def delete_company(company_id: UUID, db: DB) -> None:
 
 
 @router.post("/{company_id}/restore", response_model=CompanyResponse)
-async def restore_company(company_id: UUID, db: DB) -> Company:
+async def restore_company(company_id: UUID, db: DB, current_user: RequireWrite) -> Company:
     """Restore a soft-deleted company.
 
     Story 2.4: Restore
@@ -479,6 +481,7 @@ async def restore_company(company_id: UUID, db: DB) -> Company:
 async def list_company_contacts(
     company_id: UUID,
     db: DB,
+    current_user: RequireRead,
     include_deleted: bool = False,
 ) -> dict:
     """List contacts for a company.

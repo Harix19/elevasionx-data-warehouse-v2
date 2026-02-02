@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select, or_, and_
 
-from app.api.deps import DB
+from app.api.deps import DB, RequireRead, RequireWrite
 from app.models.contact import Contact
 from app.models.company import Company
 from app.schemas.contact import ContactCreate, ContactUpdate, ContactResponse
@@ -22,7 +22,7 @@ async def _populate_company_snapshots(contact: Contact, company: Company) -> Non
 
 
 @router.post("/", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
-async def create_contact(contact_in: ContactCreate, db: DB) -> Contact:
+async def create_contact(contact_in: ContactCreate, db: DB, current_user: RequireWrite) -> Contact:
     """Create a new contact.
 
     Story 3.1: Create Contact with Company Link
@@ -70,6 +70,7 @@ async def create_contact(contact_in: ContactCreate, db: DB) -> Contact:
 @router.get("/", response_model=PaginatedResponse[ContactResponse])
 async def list_contacts(
     db: DB,
+    current_user: RequireRead,
     limit: int = 20,
     cursor: str | None = None,
     q: str | None = None,
@@ -235,7 +236,7 @@ async def list_contacts(
 
 
 @router.get("/filter-options")
-async def get_contact_filter_options(db: DB) -> dict:
+async def get_contact_filter_options(db: DB, current_user: RequireRead) -> dict:
     """Get available filter options for contacts.
 
     Returns distinct values for filterable fields that have data.
@@ -319,7 +320,7 @@ async def get_contact_filter_options(db: DB) -> dict:
 
 
 @router.get("/{contact_id}", response_model=ContactResponse)
-async def get_contact(contact_id: UUID, db: DB) -> Contact:
+async def get_contact(contact_id: UUID, db: DB, current_user: RequireRead) -> Contact:
     """Get a single contact by ID.
 
     Story 3.2: Read Contact
@@ -346,6 +347,7 @@ async def update_contact(
     contact_id: UUID,
     contact_in: ContactUpdate,
     db: DB,
+    current_user: RequireWrite,
 ) -> Contact:
     """Update a contact.
 
@@ -406,7 +408,7 @@ async def update_contact(
 
 
 @router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_contact(contact_id: UUID, db: DB) -> None:
+async def delete_contact(contact_id: UUID, db: DB, current_user: RequireWrite) -> None:
     """Soft delete a contact.
 
     Story 3.3: Soft Delete
@@ -430,7 +432,7 @@ async def delete_contact(contact_id: UUID, db: DB) -> None:
 
 
 @router.post("/{contact_id}/restore", response_model=ContactResponse)
-async def restore_contact(contact_id: UUID, db: DB) -> Contact:
+async def restore_contact(contact_id: UUID, db: DB, current_user: RequireWrite) -> Contact:
     """Restore a soft-deleted contact.
 
     Story 3.3: Restore

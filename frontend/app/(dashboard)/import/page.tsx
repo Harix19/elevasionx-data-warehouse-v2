@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { importApi } from '@/lib/api';
 import { CSVUpload } from '@/components/import/csv-upload';
 import { ImportResults } from '@/components/import/import-results';
@@ -52,7 +52,11 @@ export default function ImportPage() {
 
   // UI state
   const [isProcessing, setIsProcessing] = useState(false);
+  const [importProgress, setImportProgress] = useState({ processed: 0, total: 0 });
   const [importResults, setImportResults] = useState<any>(null);
+  
+  // AbortController for cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleFileSelect = async (selectedFile: File) => {
     setFile(selectedFile);
@@ -93,16 +97,39 @@ export default function ImportPage() {
   const handleImport = async () => {
     if (!file) return;
     
+    // Create new AbortController for this import
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+    
     setIsProcessing(true);
+    setImportProgress({ processed: 0, total: 0 });
+    
     try {
       const fullData = await parseFullCSV(file);
-      const transformedData = transformData(fullData, mappings, manualTags);
+      
+      // Check for cancellation after CSV parsing
+      if (signal.aborted) {
+        throw new Error('Import cancelled');
+      }
+      
+      const transformedData = await transformData(fullData, mappings, manualTags, importType);
+      
+      // Check for cancellation after transformation
+      if (signal.aborted) {
+        throw new Error('Import cancelled');
+      }
+      
+      setImportProgress({ processed: 0, total: transformedData.length });
+      
+      const handleProgress = (processed: number, total: number) => {
+        setImportProgress({ processed, total });
+      };
       
       let results;
       if (importType === 'companies') {
-        results = await importApi.bulkCompanies(transformedData);
+        results = await importApi.bulkCompanies(transformedData, handleProgress, signal);
       } else {
-        results = await importApi.bulkContacts(transformedData);
+        results = await importApi.bulkContacts(transformedData, handleProgress, signal);
       }
       
       setImportResults({
@@ -110,23 +137,60 @@ export default function ImportPage() {
         total: results.total,
         success: results.created + results.updated,
         failed: results.errors.length,
+        duplicates: results.duplicates || 0,
         errors: results.errors.map((e: any) => ({ 
-          row: e.index + 2, // +2 because index is 0-based and CSV has header
+          row: e.index + 2,
           message: e.error 
-        }))
+        })),
+        partialSuccess: results.partialSuccess,
+        completedBatches: results.completedBatches,
+        totalBatches: results.totalBatches
       });
       
       setStep('results');
       setCurrentStepIndex(3);
-    } catch (error) {
+    } catch (error: any) {
+      // Handle cancellation gracefully
+      if (error.message === 'Import cancelled' || error.name === 'CanceledError') {
+        console.log('Import was cancelled by user');
+        return;
+      }
+      
       console.error('Import failed:', error);
-      alert('Import failed. Please check the console for details.');
+      // Extract validation error details from 422 response
+      const errorDetail = error.response?.data?.detail;
+      let errorMessage = 'Import failed.';
+      if (Array.isArray(errorDetail)) {
+        // Pydantic validation errors
+        const issues = errorDetail.map((e: any) => {
+          const field = e.loc?.join('.') || 'unknown';
+          return `${field}: ${e.msg}`;
+        }).join('\n');
+        errorMessage = `Validation errors:\n${issues}`;
+      } else if (typeof errorDetail === 'string') {
+        errorMessage = errorDetail;
+      } else if (error.response?.status === 422) {
+        errorMessage = 'Validation failed. Please ensure all required fields are mapped correctly.';
+      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Request timed out. The server may be processing a large batch. Please try again.';
+      }
+      alert(errorMessage);
     } finally {
       setIsProcessing(false);
+      setImportProgress({ processed: 0, total: 0 });
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancelImport = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
   };
 
   const reset = () => {
+    handleCancelImport();
     setStep('upload');
     setCurrentStepIndex(0);
     setFile(null);
@@ -279,20 +343,37 @@ export default function ImportPage() {
               </div>
 
               <div className="flex justify-between mt-12 pt-6 border-t border-zinc-800">
-                <Button variant="outline" onClick={() => setStep('mapping')}>
+                <Button variant="outline" onClick={() => setStep('mapping')} disabled={isProcessing}>
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back to Mapping
                 </Button>
-                <Button 
-                  onClick={handleImport} 
-                  disabled={isProcessing}
-                  className="bg-green-600 hover:bg-green-700 min-w-[150px]"
-                >
-                  {isProcessing ? (
-                    <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Importing... </>
-                  ) : (
-                    <> Finalize & Import <Check className="ml-2 h-4 w-4" /> </>
+                <div className="flex gap-3">
+                  {isProcessing && (
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleCancelImport}
+                      className="min-w-[100px]"
+                    >
+                      Cancel
+                    </Button>
                   )}
-                </Button>
+                  <Button 
+                    onClick={handleImport} 
+                    disabled={isProcessing}
+                    className="bg-green-600 hover:bg-green-700 min-w-[180px]"
+                  >
+                    {isProcessing ? (
+                      <> 
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                        {importProgress.total > 0 
+                          ? `${importProgress.processed} / ${importProgress.total}` 
+                          : 'Preparing...'
+                        }
+                      </>
+                    ) : (
+                      <> Finalize & Import <Check className="ml-2 h-4 w-4" /> </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>

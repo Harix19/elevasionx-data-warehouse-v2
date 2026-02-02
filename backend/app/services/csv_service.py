@@ -19,13 +19,34 @@ def _parse_array(value: str) -> list[str]:
     return [item.strip() for item in value.split(',') if item.strip()]
 
 
-async def _upsert_companies_batch(db: AsyncSession, batch: list[dict]) -> tuple[int, int]:
+def _deduplicate_by_key(records: list[dict], key: str) -> tuple[list[dict], int]:
+    """
+    Deduplicate records by a key field, keeping the last occurrence.
+    Returns (deduplicated_records, duplicate_count).
+    """
+    seen = {}
+    for record in records:
+        key_value = record.get(key)
+        if key_value:
+            seen[key_value] = record
+        else:
+            seen[id(record)] = record
+    duplicate_count = len(records) - len(seen)
+    return list(seen.values()), duplicate_count
+
+
+async def _upsert_companies_batch(db: AsyncSession, batch: list[dict]) -> tuple[int, int, int]:
     """
     Upsert a batch of companies using PostgreSQL INSERT ... ON CONFLICT.
-    Returns (created_count, updated_count).
+    Returns (created_count, updated_count, duplicate_count).
     """
     if not batch:
-        return 0, 0
+        return 0, 0, 0
+
+    # Deduplicate by domain to prevent ON CONFLICT errors
+    batch, duplicate_count = _deduplicate_by_key(batch, 'domain')
+    if not batch:
+        return 0, 0, duplicate_count
 
     # Get current count of records with domains in this batch
     domains = [r['domain'] for r in batch if r['domain']]
@@ -71,17 +92,22 @@ async def _upsert_companies_batch(db: AsyncSession, batch: list[dict]) -> tuple[
     created = len(batch) - existing_count
     updated = existing_count
 
-    return created, updated
+    return created, updated, duplicate_count
 
 
-async def _upsert_contacts_batch(db: AsyncSession, batch: list[dict], domains: set[str]) -> tuple[int, int]:
+async def _upsert_contacts_batch(db: AsyncSession, batch: list[dict], domains: set[str]) -> tuple[int, int, int]:
     """
     Upsert a batch of contacts using PostgreSQL INSERT ... ON CONFLICT.
     Resolves company_id from company_domain.
-    Returns (created_count, updated_count).
+    Returns (created_count, updated_count, duplicate_count).
     """
     if not batch:
-        return 0, 0
+        return 0, 0, 0
+
+    # Deduplicate by email to prevent ON CONFLICT errors
+    batch, duplicate_count = _deduplicate_by_key(batch, 'email')
+    if not batch:
+        return 0, 0, duplicate_count
 
     # Resolve company IDs from domains (single query)
     domain_to_company = {}
@@ -145,7 +171,7 @@ async def _upsert_contacts_batch(db: AsyncSession, batch: list[dict], domains: s
     created = len(batch) - existing_count
     updated = existing_count
 
-    return created, updated
+    return created, updated, duplicate_count
 
 
 async def import_companies_csv(db: AsyncSession, file_content: str) -> BulkImportResponse:
@@ -164,6 +190,7 @@ async def import_companies_csv(db: AsyncSession, file_content: str) -> BulkImpor
     total = 0
     created = 0
     updated = 0
+    duplicates = 0
     errors: list[ImportError] = []
 
     batch = []
@@ -204,9 +231,10 @@ async def import_companies_csv(db: AsyncSession, file_content: str) -> BulkImpor
 
             # Process batch when full
             if len(batch) >= settings.CSV_IMPORT_BATCH_SIZE:
-                batch_created, batch_updated = await _upsert_companies_batch(db, batch)
+                batch_created, batch_updated, batch_duplicates = await _upsert_companies_batch(db, batch)
                 created += batch_created
                 updated += batch_updated
+                duplicates += batch_duplicates
                 batch = []
 
         except Exception as e:
@@ -214,14 +242,16 @@ async def import_companies_csv(db: AsyncSession, file_content: str) -> BulkImpor
 
     # Process remaining batch
     if batch:
-        batch_created, batch_updated = await _upsert_companies_batch(db, batch)
+        batch_created, batch_updated, batch_duplicates = await _upsert_companies_batch(db, batch)
         created += batch_created
         updated += batch_updated
+        duplicates += batch_duplicates
 
     return BulkImportResponse(
         total=total,
         created=created,
         updated=updated,
+        duplicates=duplicates,
         errors=errors
     )
 
@@ -243,6 +273,7 @@ async def import_contacts_csv(db: AsyncSession, file_content: str) -> BulkImport
     total = 0
     created = 0
     updated = 0
+    duplicates = 0
     errors: list[ImportError] = []
 
     batch = []
@@ -286,9 +317,10 @@ async def import_contacts_csv(db: AsyncSession, file_content: str) -> BulkImport
 
             # Process batch when full
             if len(batch) >= settings.CSV_IMPORT_BATCH_SIZE:
-                batch_created, batch_updated = await _upsert_contacts_batch(db, batch, domains_in_batch)
+                batch_created, batch_updated, batch_duplicates = await _upsert_contacts_batch(db, batch, domains_in_batch)
                 created += batch_created
                 updated += batch_updated
+                duplicates += batch_duplicates
                 batch = []
                 domains_in_batch = set()
 
@@ -297,13 +329,15 @@ async def import_contacts_csv(db: AsyncSession, file_content: str) -> BulkImport
 
     # Process remaining batch
     if batch:
-        batch_created, batch_updated = await _upsert_contacts_batch(db, batch, domains_in_batch)
+        batch_created, batch_updated, batch_duplicates = await _upsert_contacts_batch(db, batch, domains_in_batch)
         created += batch_created
         updated += batch_updated
+        duplicates += batch_duplicates
 
     return BulkImportResponse(
         total=total,
         created=created,
         updated=updated,
+        duplicates=duplicates,
         errors=errors
     )

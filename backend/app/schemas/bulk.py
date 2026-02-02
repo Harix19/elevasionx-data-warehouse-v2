@@ -16,6 +16,7 @@ class BulkImportResponse(BaseModel):
     total: int = Field(description="Total rows processed")
     created: int = Field(description="Number of new records created")
     updated: int = Field(description="Number of existing records updated")
+    duplicates: int = Field(default=0, description="Number of duplicate records merged (deduplicated within batch)")
     errors: list[ImportError] = Field(default_factory=list, description="List of errors encountered")
 
 
@@ -65,6 +66,10 @@ class BulkContactRecord(BaseModel):
     department: str | None = None
     company_domain: str | None = None
     company_linkedin_url: str | None = None
+    industry: str | None = None
+    country: str | None = None
+    city: str | None = None
+    state: str | None = None
     custom_tags_a: list[str] = Field(default_factory=list)
     custom_tags_b: list[str] = Field(default_factory=list)
     custom_tags_c: list[str] = Field(default_factory=list)
@@ -119,4 +124,5 @@ class BulkResult(BaseModel):
     created: int = Field(description="Number of new records created")
     updated: int = Field(description="Number of existing records updated")
     skipped: int = Field(description="Number of records skipped (duplicates in insert-only mode)")
+    duplicates: int = Field(default=0, description="Number of duplicate records merged (deduplicated within batch)")
     errors: list[RecordError] = Field(default_factory=list, description="List of errors encountered")
