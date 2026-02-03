@@ -1,8 +1,9 @@
 # Implementation Plan: Contact Import Schema Update
 
-**Date:** January 31, 2026  
-**Status:** Pending  
+**Date:** February 3, 2026  
+**Status:** Implementation Complete - Pending Railway Deployment  
 **Priority:** High  
+**Deployment Target:** Railway Platform
 
 ---
 
@@ -26,23 +27,85 @@ The contact import feature fails with a 422 (Unprocessable Content) error when u
 ## Scope
 
 ### New Database Fields to Add
-| Field | Type | Nullable | Description |
-|-------|------|----------|-------------|
-| `industry` | String | Yes | Industry sector (e.g., "staffing & recruiting") |
-| `country` | String | Yes | Contact's country |
-| `city` | String | Yes | Contact's city |
-| `state` | String | Yes | Contact's state/province |
+| Field | Type | Nullable | Description | Status |
+|-------|------|----------|-------------|--------|
+| `industry` | String | Yes | Industry sector (e.g., "staffing & recruiting") | ✅ Added |
+| `country` | String | Yes | Contact's country | ✅ Added |
+| `city` | String | Yes | Contact's city | ✅ Added |
+| `state` | String | Yes | Contact's state/province | ✅ Added |
 
-### Files to Modify
+### Files Modified
 
-| File | Type | Changes Required |
-|------|------|------------------|
-| `backend/app/models/contact.py` | Model | Add 4 new columns |
-| `backend/app/schemas/bulk.py` | Schema | Add 4 new fields to `BulkContactRecord` |
-| `backend/app/services/bulk_service.py` | Service | Add new fields to upsert `set_=` dict |
-| `frontend/lib/import-utils.ts` | Utils | Add new fields + update aliases |
-| `frontend/lib/import-utils.ts` | Utils | Fix `transformData()` to exclude company-only fields |
-| Alembic migration | Migration | Add new columns to contacts table |
+| File | Type | Changes | Status |
+|------|------|---------|--------|
+| `backend/app/models/contact.py` | Model | Add 4 new columns | ✅ Complete |
+| `backend/app/schemas/bulk.py` | Schema | Add 4 new fields to `BulkContactRecord` | ✅ Complete |
+| `backend/app/services/bulk_service.py` | Service | Add new fields to upsert `set_=` dict | ✅ Complete |
+| `frontend/lib/import-utils.ts` | Utils | Add new fields + update aliases | ✅ Complete |
+| `frontend/lib/import-utils.ts` | Utils | Fix `transformData()` to exclude company-only fields | ✅ Complete |
+| Alembic migration | Migration | Add new columns to contacts table | ✅ Complete |
+
+---
+
+## Infrastructure Context (Railway Deployment)
+
+### Target Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Railway Project                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │   Frontend   │  │    Backend   │  │    Redis     │       │
+│  │   Service    │  │    Service   │  │    Service   │       │
+│  │  (Next.js)   │  │   (FastAPI)  │  │   (Template) │       │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘       │
+│         │                 │                 │                │
+│         └─────────────────┴─────────────────┘                │
+│              Private Network (railway.internal)                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              │ External (internet)
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Neon Serverless                          │
+│              (PostgreSQL with PgBouncer)                    │
+│                   (port 6543 - pooled)                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Railway Features to Leverage
+
+1. **Private Networking**: Services communicate via `{service-name}.railway.internal` with microsecond latency
+2. **Reference Variables**: Use `${{ service.VAR }}` syntax for cross-service configuration
+3. **Redis Template**: One-click deploy with auto-configured environment variables
+4. **Monorepo Support**: Deploy backend and frontend from same repo with different root directories
+
+### Environment Variables for Railway
+
+**Backend Service Variables:**
+```bash
+# Database (Neon Serverless - external to Railway)
+DATABASE_URL=postgresql+asyncpg://user:pass@host.neon.tech:6543/dbname?ssl=require
+
+# Redis (via Railway template - auto-populated reference)
+REDIS_URL=${{ redis.REDIS_URL }}
+CACHE_ENABLED=true
+CACHE_DEFAULT_TTL=300
+
+# Security
+SECRET_KEY=${{ shared.SECRET_KEY }}
+DEBUG=false
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_DEFAULT=1000
+```
+
+**Frontend Service Variables:**
+```bash
+NEXT_PUBLIC_API_URL=https://${{ backend.RAILWAY_PUBLIC_DOMAIN }}/api/v1
+NEXT_PUBLIC_APP_ENV=production
+```
 
 ---
 
@@ -112,6 +175,12 @@ alembic upgrade head
 
 **Expected Migration:** Creates 4 new nullable String columns in the `contacts` table.
 
+**Railway Deployment Note:** Migration runs during deployment via `preDeployCommand` in `railway.toml`:
+```toml
+[deploy]
+preDeployCommand = ["alembic upgrade head"]
+```
+
 ---
 
 ### Step 5: Frontend Field Definitions Update
@@ -167,25 +236,78 @@ alembic upgrade head
    ↓
 5. Frontend Fields (import-utils.ts)
    ↓
-6. Testing
+6. Railway Configuration (railway.toml)
+   ↓
+7. Testing
 ```
+
+---
+
+## Railway Deployment Configuration
+
+### Backend railway.toml
+
+```toml
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+preDeployCommand = ["alembic upgrade head"]
+healthcheckPath = "/health/ready"
+healthcheckTimeout = 30
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 3
+```
+
+### Frontend railway.toml
+
+```toml
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "next start --hostname :: --port ${PORT-3000}"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+```
+
+### Service Configuration
+
+1. **Backend Service:**
+   - Root directory: `/backend`
+   - Environment variables: Reference Neon DB and Redis service
+
+2. **Frontend Service:**
+   - Root directory: `/frontend`
+   - Environment variables: Reference backend public domain
+
+3. **Redis Service:**
+   - Deploy from Railway Redis template
+   - Auto-configures REDIS_URL, REDISHOST, REDISPORT, REDISPASSWORD
 
 ---
 
 ## Testing Plan
 
-### Unit Tests
-- [ ] Test `BulkContactRecord` accepts new fields
-- [ ] Test `BulkContactRecord` rejects unknown fields (like `keywords` for contacts)
+### Code Implementation Tests ✅
+- [x] Verify `BulkContactRecord` accepts new fields
+- [x] Verify `BulkContactRecord` rejects unknown fields (like `keywords` for contacts)
+- [x] Check backend model has all 4 new columns
+- [x] Verify frontend field aliases are correct
 
-### Integration Tests
+### Pending Testing (After Railway Deploy)
 - [ ] Import Wellfound CSV successfully
 - [ ] Import Prospeo CSV successfully
 - [ ] Import Staffing Agencies CSV successfully
 - [ ] Verify new fields are stored in database
 - [ ] Verify auto-mapping works for common column names
+- [ ] Verify private networking (backend → Redis communication)
+- [ ] Verify Redis connection via internal DNS
+- [ ] Test database migration runs on deploy
+- [ ] Verify health check endpoints
 
-### Manual Testing
+### Manual Testing (Pending)
 1. Upload each sample CSV file
 2. Verify column auto-mapping suggestions
 3. Complete import without 422 error
@@ -247,24 +369,73 @@ alembic upgrade head
 If issues arise:
 1. Run `alembic downgrade -1` to revert migration
 2. Revert code changes via git
-3. Restart backend service
+3. Restart backend service via Railway dashboard
+4. If Railway deployment fails, use Railway's built-in rollback feature
 
 ---
 
-## Estimated Time
+## Implementation Summary
 
-| Task | Time |
-|------|------|
-| Backend changes | 15 min |
-| Migration | 5 min |
-| Frontend changes | 20 min |
-| Testing | 30 min |
-| **Total** | ~1 hour |
+**Status:** ✅ Code changes complete, pending Railway deployment
+
+| Task | Estimated | Actual | Status |
+|------|-----------|--------|--------|
+| Backend Model Update | 15 min | 5 min | ✅ Complete |
+| Backend Schema Update | 10 min | 5 min | ✅ Complete |
+| Backend Service Update | 10 min | 5 min | ✅ Complete |
+| Database Migration | 5 min | 10 min | ✅ Complete (cleaned) |
+| Frontend Field Updates | 20 min | 5 min | ✅ Complete |
+| Railway Configuration | 30 min | In progress | ⏳ Pending |
+| Testing | 30 min | - | ⏳ Pending |
+| **Total** | ~1.5 hours | ~30 min + deploy | - |
+
+### What Was Fixed
+
+1. **Database Schema** - Added `industry`, `country`, `city`, `state` columns to `contacts` table
+2. **Backend API** - `BulkContactRecord` now accepts these fields and bulk import properly upserts them
+3. **Frontend** - CSV auto-mapping now recognizes:
+   - Wellfound column names ("Work Email", "LinkedIn Profile")
+   - Prospeo column names ("Person country", "Person city", "Person state")
+   - Staffing agency columns ("organization_name", "industry", "seniority")
+
+### Next Steps
+
+1. Create `railway.toml` configuration files
+2. Run database migration locally to verify
+3. Deploy to Railway
+4. Test with sample CSV imports
+
+### Files Changed
+
+```
+backend/app/models/contact.py                    # Added 4 columns
+backend/app/schemas/bulk.py                      # Added 4 fields to BulkContactRecord
+backend/app/services/bulk_service.py             # Added fields to upsert logic
+backend/alembic/versions/b269f2a46216_add_...    # Migration (cleaned up)
+frontend/lib/import-utils.ts                     # Added aliases and field definitions
+```
 
 ---
 
 ## Dependencies
 
 - Alembic installed and configured
-- Database access for migrations
+- Database access for migrations (Neon)
 - Backend and frontend dev servers running for testing
+- Railway CLI installed for deployment: `npm i -g @railway/cli`
+- Railway project created and linked
+
+---
+
+## Related Documentation
+
+- [Speed Optimization PRD](./Speed_Optimization_PRD.md)
+- [Speed Optimization TODO](./Speed_Optimization_TODO.md)
+- [Railway Documentation](https://docs.railway.com/)
+- [Neon Serverless PostgreSQL](https://neon.tech/)
+
+---
+
+**Maintained by:** Engineering Team  
+**Last Updated:** February 2026  
+**Status:** Ready for Implementation

@@ -26,7 +26,9 @@ export const tokenStorage = {
     const secureFlag = isHttps ? 'Secure;' : '';
     document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=86400; SameSite=Lax; ${secureFlag}`;
     
-    console.log('[Auth] Token stored:', token.substring(0, 20) + '...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Auth] Token stored');
+    }
   },
 
   removeToken(): void {
@@ -39,12 +41,16 @@ export const tokenStorage = {
     const secureFlag = isHttps ? 'Secure;' : '';
     document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax; ${secureFlag}`;
     
-    console.log('[Auth] Token removed');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Auth] Token removed');
+    }
   },
 
   isAuthenticated(): boolean {
     const token = this.getToken();
-    console.log('[Auth] Auth check, token exists:', !!token);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Auth] Auth check, token exists:', !!token);
+    }
     return !!token;
   },
 };

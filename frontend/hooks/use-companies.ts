@@ -6,6 +6,7 @@ export function useCompanies(params?: CompaniesListParams) {
   return useQuery({
     queryKey: ['companies', params],
     queryFn: () => companiesApi.list(params),
+    staleTime: 30 * 1000, // 30 seconds for lists
   });
 }
 
@@ -14,6 +15,7 @@ export function useCompany(id: string) {
     queryKey: ['company', id],
     queryFn: () => companiesApi.getById(id),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000, // 2 minutes for detail views
   });
 }
 
@@ -22,6 +24,7 @@ export function useCompanyContacts(companyId: string) {
     queryKey: ['company', companyId, 'contacts'],
     queryFn: () => companiesApi.listContacts(companyId),
     enabled: !!companyId,
+    staleTime: 60 * 1000, // 1 minute for contact lists
   });
 }
 

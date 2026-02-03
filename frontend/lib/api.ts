@@ -21,8 +21,10 @@ api.interceptors.request.use((config) => {
   const token = tokenStorage.getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('[API] Adding auth header for:', config.url, 'Token:', token.substring(0, 20) + '...');
-  } else {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API] Request:', config.url);
+    }
+  } else if (process.env.NODE_ENV === 'development') {
     console.log('[API] No token found for:', config.url);
   }
   return config;
@@ -32,9 +34,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('[API] Response error:', error.response?.status, error.config?.url);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[API] Response error:', error.response?.status, error.config?.url);
+    }
     if (error.response?.status === 401) {
-      console.log('[API] 401 Unauthorized - redirecting to login');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[API] 401 Unauthorized - redirecting to login');
+      }
       tokenStorage.removeToken();
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
@@ -192,7 +198,9 @@ export const importApi = {
     const results = { total: 0, created: 0, updated: 0, duplicates: 0, errors: [] as any[] };
     let completedBatches = 0;
     
-    console.log(`[Import] Starting companies import: ${records.length} records in ${totalBatches} batches`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Import] Starting companies import: ${records.length} records in ${totalBatches} batches`);
+    }
     
     for (let i = 0; i < records.length; i += BATCH_SIZE) {
       const batchNum = Math.floor(i / BATCH_SIZE) + 1;
@@ -203,7 +211,9 @@ export const importApi = {
       }
       
       const batch = records.slice(i, i + BATCH_SIZE);
-      console.log(`[Import] Batch ${batchNum}/${totalBatches}: ${batch.length} records (${i}-${Math.min(i + BATCH_SIZE, records.length)})`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Import] Batch ${batchNum}/${totalBatches}: ${batch.length} records (${i}-${Math.min(i + BATCH_SIZE, records.length)})`);
+      }
       
       // Try sending batch with retry logic
       let response = null;
@@ -215,7 +225,9 @@ export const importApi = {
         try {
           if (attempt > 1) {
             const retryDelay = RETRY_DELAY_BASE_MS * (attempt - 1);
-            console.log(`[Import] Batch ${batchNum} retry ${attempt - 1}/${MAX_RETRIES - 1} after ${retryDelay}ms delay...`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[Import] Batch ${batchNum} retry ${attempt - 1}/${MAX_RETRIES - 1} after ${retryDelay}ms delay...`);
+            }
             await new Promise(resolve => setTimeout(resolve, retryDelay));
           }
           
@@ -224,17 +236,21 @@ export const importApi = {
             signal,
           });
           
-          console.log(`[Import] Batch ${batchNum}/${totalBatches} completed successfully:`, {
-            total: response.data.total,
-            created: response.data.created,
-            updated: response.data.updated,
-            errors: response.data.errors?.length || 0
-          });
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[Import] Batch ${batchNum}/${totalBatches} completed successfully:`, {
+              total: response.data.total,
+              created: response.data.created,
+              updated: response.data.updated,
+              errors: response.data.errors?.length || 0
+            });
+          }
           
           break; // Success, exit retry loop
         } catch (error: any) {
           lastError = error;
-          console.error(`[Import] Batch ${batchNum}/${totalBatches} attempt ${attempt} failed:`, error.message);
+          if (process.env.NODE_ENV === 'development') {
+            console.error(`[Import] Batch ${batchNum}/${totalBatches} attempt ${attempt} failed:`, error.message);
+          }
           
           if (signal?.aborted) {
             throw new Error('Import cancelled');
@@ -242,7 +258,9 @@ export const importApi = {
           
           // Don't retry if we've exhausted retries
           if (attempt === MAX_RETRIES) {
-            console.error(`[Import] Batch ${batchNum}/${totalBatches} failed after ${MAX_RETRIES} attempts`);
+            if (process.env.NODE_ENV === 'development') {
+              console.error(`[Import] Batch ${batchNum}/${totalBatches} failed after ${MAX_RETRIES} attempts`);
+            }
             throw error;
           }
         }
@@ -266,23 +284,31 @@ export const importApi = {
           })));
         }
       } catch (err: any) {
-        console.error(`[Import] Failed to process batch ${batchNum} response:`, err);
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`[Import] Failed to process batch ${batchNum} response:`, err);
+        }
         throw new Error(`Failed to process batch ${batchNum} results: ${err.message}`);
       }
       
       completedBatches++;
       const processed = Math.min(i + BATCH_SIZE, records.length);
-      console.log(`[Import] Progress: ${processed}/${records.length} records, ${completedBatches}/${totalBatches} batches`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Import] Progress: ${processed}/${records.length} records, ${completedBatches}/${totalBatches} batches`);
+      }
       onProgress?.(processed, records.length);
       
       // Delay between batches to allow Neon connections to close
       if (i + BATCH_SIZE < records.length) {
-        console.log(`[Import] Waiting ${BATCH_DELAY_MS}ms before next batch...`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Import] Waiting ${BATCH_DELAY_MS}ms before next batch...`);
+        }
         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
       }
     }
     
-    console.log(`[Import] Import complete: ${results.created + results.updated}/${results.total} successful, ${results.errors.length} errors`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Import] Import complete: ${results.created + results.updated}/${results.total} successful, ${results.errors.length} errors`);
+    }
     
     return {
       ...results,
@@ -305,7 +331,9 @@ export const importApi = {
     const results = { total: 0, created: 0, updated: 0, duplicates: 0, errors: [] as any[] };
     let completedBatches = 0;
     
-    console.log(`[Import] Starting contacts import: ${records.length} records in ${totalBatches} batches`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Import] Starting contacts import: ${records.length} records in ${totalBatches} batches`);
+    }
     
     for (let i = 0; i < records.length; i += BATCH_SIZE) {
       const batchNum = Math.floor(i / BATCH_SIZE) + 1;
@@ -316,7 +344,9 @@ export const importApi = {
       }
       
       const batch = records.slice(i, i + BATCH_SIZE);
-      console.log(`[Import] Batch ${batchNum}/${totalBatches}: ${batch.length} records (${i}-${Math.min(i + BATCH_SIZE, records.length)})`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Import] Batch ${batchNum}/${totalBatches}: ${batch.length} records (${i}-${Math.min(i + BATCH_SIZE, records.length)})`);
+      }
       
       // Try sending batch with retry logic
       let response = null;
@@ -328,7 +358,9 @@ export const importApi = {
         try {
           if (attempt > 1) {
             const retryDelay = RETRY_DELAY_BASE_MS * (attempt - 1);
-            console.log(`[Import] Batch ${batchNum} retry ${attempt - 1}/${MAX_RETRIES - 1} after ${retryDelay}ms delay...`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[Import] Batch ${batchNum} retry ${attempt - 1}/${MAX_RETRIES - 1} after ${retryDelay}ms delay...`);
+            }
             await new Promise(resolve => setTimeout(resolve, retryDelay));
           }
           
@@ -337,17 +369,21 @@ export const importApi = {
             signal,
           });
           
-          console.log(`[Import] Batch ${batchNum}/${totalBatches} completed successfully:`, {
-            total: response.data.total,
-            created: response.data.created,
-            updated: response.data.updated,
-            errors: response.data.errors?.length || 0
-          });
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[Import] Batch ${batchNum}/${totalBatches} completed successfully:`, {
+              total: response.data.total,
+              created: response.data.created,
+              updated: response.data.updated,
+              errors: response.data.errors?.length || 0
+            });
+          }
           
           break; // Success, exit retry loop
         } catch (error: any) {
           lastError = error;
-          console.error(`[Import] Batch ${batchNum}/${totalBatches} attempt ${attempt} failed:`, error.message);
+          if (process.env.NODE_ENV === 'development') {
+            console.error(`[Import] Batch ${batchNum}/${totalBatches} attempt ${attempt} failed:`, error.message);
+          }
           
           if (signal?.aborted) {
             throw new Error('Import cancelled');
@@ -355,7 +391,9 @@ export const importApi = {
           
           // Don't retry if we've exhausted retries
           if (attempt === MAX_RETRIES) {
-            console.error(`[Import] Batch ${batchNum}/${totalBatches} failed after ${MAX_RETRIES} attempts`);
+            if (process.env.NODE_ENV === 'development') {
+              console.error(`[Import] Batch ${batchNum}/${totalBatches} failed after ${MAX_RETRIES} attempts`);
+            }
             throw error;
           }
         }
@@ -379,23 +417,31 @@ export const importApi = {
           })));
         }
       } catch (err: any) {
-        console.error(`[Import] Failed to process batch ${batchNum} response:`, err);
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`[Import] Failed to process batch ${batchNum} response:`, err);
+        }
         throw new Error(`Failed to process batch ${batchNum} results: ${err.message}`);
       }
       
       completedBatches++;
       const processed = Math.min(i + BATCH_SIZE, records.length);
-      console.log(`[Import] Progress: ${processed}/${records.length} records, ${completedBatches}/${totalBatches} batches`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Import] Progress: ${processed}/${records.length} records, ${completedBatches}/${totalBatches} batches`);
+      }
       onProgress?.(processed, records.length);
       
       // Delay between batches to allow Neon connections to close
       if (i + BATCH_SIZE < records.length) {
-        console.log(`[Import] Waiting ${BATCH_DELAY_MS}ms before next batch...`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Import] Waiting ${BATCH_DELAY_MS}ms before next batch...`);
+        }
         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
       }
     }
     
-    console.log(`[Import] Import complete: ${results.created + results.updated}/${results.total} successful, ${results.errors.length} errors`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Import] Import complete: ${results.created + results.updated}/${results.total} successful, ${results.errors.length} errors`);
+    }
     
     return {
       ...results,

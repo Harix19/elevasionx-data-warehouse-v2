@@ -1,9 +1,11 @@
 """Main FastAPI application."""
 
 import time
+import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.v1.api import api_router
 from app.core.logging import configure_logging, get_logger
@@ -38,18 +40,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# GZip compression for responses > 1KB
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log incoming requests with method, path, and processing time."""
+    """Log incoming requests with structured timing and trace information."""
     start_time = time.time()
+
+    # Generate or extract trace ID
+    trace_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+
     response = await call_next(request)
     process_time = time.time() - start_time
+    duration_ms = process_time * 1000
+
+    # Structured logging
     logger.info(
-        f"Request: {request.method} {request.url.path} "
-        f"- Status: {response.status_code} "
-        f"- Duration: {process_time:.4f}s"
+        "Request completed",
+        extra={
+            "trace_id": trace_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+        }
     )
+
+    # Add response headers for timing and tracing
+    response.headers["X-Request-ID"] = trace_id
+    response.headers["X-Response-Time"] = f"{duration_ms:.3f}"
+
     return response
 
 

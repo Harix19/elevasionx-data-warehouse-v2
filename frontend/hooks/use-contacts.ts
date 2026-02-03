@@ -7,6 +7,8 @@ export function useContacts(params?: ContactsListParams) {
   return useQuery({
     queryKey: ['contacts', params],
     queryFn: () => contactsApi.list(params),
+    staleTime: 30 * 1000, // 30 seconds for lists
+    gcTime: 2 * 60 * 1000, // 2 minutes garbage collection time
   });
 }
 
@@ -15,6 +17,8 @@ export function useContact(id: string) {
     queryKey: ['contact', id],
     queryFn: () => contactsApi.getById(id),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000, // 2 minutes for detail views
+    gcTime: 5 * 60 * 1000, // 5 minutes garbage collection time
   });
 }
 

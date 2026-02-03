@@ -1,0 +1,7 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "next start --hostname :: --port ${PORT-3000}"
+healthcheckPath = "/"
+healthcheckTimeout = 30
