@@ -1,7 +1,5 @@
 [build]
 builder = "nixpacks"
-[nixpacks]
-# Use Node.js provider - detected from package.json
 
 [deploy]
 startCommand = "next start --hostname :: --port ${PORT-3000}"

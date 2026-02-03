@@ -1,13 +1,7 @@
 [build]
 builder = "nixpacks"
-[nixpacks]
-# Use Python provider - detected from requirements.txt
 
 [deploy]
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-# Skip preDeployCommand - run migrations manually after deployment
-# preDeployCommand = ["alembic upgrade head"]
 healthcheckPath = "/health/ready"
 healthcheckTimeout = 30
-restartPolicyType = "on-failure"
-restartPolicyMaxRetries = 3
