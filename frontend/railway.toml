@@ -1,5 +1,6 @@
-[build]
-builder = "nixpacks"
+[nixpacks]
+# Explicitly use Node.js provider for Next.js
+providers = ["node"]
 
 [deploy]
 startCommand = "next start --hostname :: --port ${PORT-3000}"
