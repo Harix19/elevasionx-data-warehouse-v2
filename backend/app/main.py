@@ -93,6 +93,18 @@ if settings.RATE_LIMIT_ENABLED:
 app.include_router(api_router, prefix="/api/v1")
 
 
+@app.get("/")
+async def root():
+    """Root endpoint - API info."""
+    return {
+        "name": "Leads Data Warehouse API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health/ready",
+        "api": "/api/v1"
+    }
+
+
 @app.get("/health/live")
 async def liveness():
     """Liveness health check endpoint."""
