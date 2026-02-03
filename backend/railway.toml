@@ -2,6 +2,12 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+# Add --proxy-headers and --forwarded-allow-ips to handle Railway load balancer correctly
+# This fixes "Mixed Content" errors caused by http->https redirects
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'"
+# Skip preDeployCommand - run migrations manually after deployment
+# preDeployCommand = ["alembic upgrade head"]
 healthcheckPath = "/health/ready"
 healthcheckTimeout = 30
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 3
