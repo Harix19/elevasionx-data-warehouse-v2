@@ -31,19 +31,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual origins
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# IMPORTANT: CORS must be the LAST middleware added to run first
+# This ensures CORS headers are added to all responses including errors
 
-# GZip compression for responses > 1KB
+# GZip compression for responses > 1KB (add first - runs last)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# Rate limiting middleware (add second)
+# Use Redis-based middleware in production, simple in-memory for development
+if settings.RATE_LIMIT_ENABLED:
+    try:
+        app.add_middleware(RateLimitMiddleware)
+        logger.info("Rate limiting enabled with Redis backend")
+    except Exception as e:
+        logger.warning(
+            f"Failed to initialize Redis rate limiter, using in-memory: {e}"
+        )
+        app.add_middleware(SimpleRateLimitMiddleware)
+        logger.info("Rate limiting enabled with in-memory backend")
 
+# Request logging middleware (add third)
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     """Log incoming requests with structured timing and trace information."""
@@ -74,19 +81,17 @@ async def log_requests(request: Request, call_next):
 
     return response
 
-
-# Rate limiting middleware
-# Use Redis-based middleware in production, simple in-memory for development
-if settings.RATE_LIMIT_ENABLED:
-    try:
-        app.add_middleware(RateLimitMiddleware)
-        logger.info("Rate limiting enabled with Redis backend")
-    except Exception as e:
-        logger.warning(
-            f"Failed to initialize Redis rate limiter, using in-memory: {e}"
-        )
-        app.add_middleware(SimpleRateLimitMiddleware)
-        logger.info("Rate limiting enabled with in-memory backend")
+# CORS configuration (add LAST so it runs FIRST on requests)
+# This ensures preflight OPTIONS requests are handled before other middlewares
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
+)
 
 
 # Include API router
