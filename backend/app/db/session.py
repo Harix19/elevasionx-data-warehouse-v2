@@ -12,7 +12,12 @@ engine = create_async_engine(
     echo=settings.DEBUG,
     # Disable statement caching to avoid InvalidCachedStatementError
     # when schema changes occur (e.g., during tests or migrations)
-    connect_args={"statement_cache_size": 0},
+    # Add timeout for Neon cold starts
+    connect_args={
+        "statement_cache_size": 0,
+        "timeout": 60,
+        "command_timeout": 300,
+    },
 )
 
 async_session_maker = async_sessionmaker(

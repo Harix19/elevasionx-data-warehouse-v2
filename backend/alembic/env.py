@@ -51,9 +51,14 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in async mode."""
     # Create async engine directly with settings.DATABASE_URL
+    # Use increased timeout for Neon serverless cold starts
     connectable = create_async_engine(
         settings.DATABASE_URL,
         poolclass=pool.NullPool,
+        connect_args={
+            "timeout": 60,
+            "command_timeout": 300,
+        },
     )
 
     async with connectable.connect() as connection:
